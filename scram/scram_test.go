@@ -68,8 +68,8 @@ func TestStandardExample(t *testing.T) {
 		t.Fatal("Client Final doesn't match expected Client Final")
 	}
 
-	if base64.StdEncoding.EncodeToString(s.genProof()) != std_base64_proof {
-		t.Log("Epected", std_base64_proof, "Got", base64.StdEncoding.EncodeToString(s.genProof()))
+	if base64.StdEncoding.EncodeToString(s.proof()) != std_base64_proof {
+		t.Log("Epected", std_base64_proof, "Got", base64.StdEncoding.EncodeToString(s.proof()))
 		t.Fatal("Wrong proof value generated")
 	}
 
@@ -78,8 +78,8 @@ func TestStandardExample(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if bytes.Equal(s.genProof(), eproof) {
-		t.Logf("Expected %x\nGot      %x", eproof, s.genProof())
+	if bytes.Equal(s.proof(), eproof) {
+		t.Logf("Expected %x\nGot      %x", eproof, s.proof())
 		t.Fatal("Wrong proof value generated")
 	}
 
@@ -92,8 +92,8 @@ func TestStandardExample(t *testing.T) {
 		t.Fatal("Server Final doesn't match expected Server Final")
 	}
 
-	if std_base64_verification != base64.StdEncoding.EncodeToString(s.Verification()) {
-		t.Log("Epected", std_base64_verification, "Got", base64.StdEncoding.EncodeToString(s.Verification()))
+	if std_base64_verification != base64.StdEncoding.EncodeToString(s.verification()) {
+		t.Log("Epected", std_base64_verification, "Got", base64.StdEncoding.EncodeToString(s.verification()))
 		t.Fatal("Wrong verification value generated")
 	}
 }
@@ -106,7 +106,7 @@ func TestClientParsing(t *testing.T) {
 		t.Fatal("Error parsing Client First:", err)
 	}
 
-	if s.getCNonce() != std_cnonce {
+	if s.cnonce() != std_cnonce {
 		t.Fatal("CNonce doesn't match")
 	}
 
@@ -139,7 +139,7 @@ func TestServerParsing(t *testing.T) {
 		t.Fatal("Error parsing Server First:", err)
 	}
 
-	if s.getNonce() != std_nonce {
+	if s.nonce() != std_nonce {
 		t.Fatal("Nonce doesn't match")
 	}
 

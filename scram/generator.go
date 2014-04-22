@@ -14,6 +14,15 @@ const (
 	MAX_ITERATIONS = 10000
 )
 
+type Generator interface {
+	// Method used in CNonce and Nonce generation
+	GetNonce() string
+	// Salt derivation function
+	GetSalt() []byte
+	// Iterations count derivation function
+	GetIterations() int
+}
+
 type Generators struct{}
 
 // Generate nonce and returns it as string
