@@ -92,6 +92,15 @@ func (s *Scram) ServerFinal() string {
 	return fmt.Sprintf("v=%s", base64.StdEncoding.EncodeToString(s.verification()))
 }
 
+// Sets salt, salted_password and iterations count for further processing.
+// This method allows to have salted password and related info stored and
+// provided at authentications stage. So you won't need to store it in plain text
+func (s *Scram) SetSaltedPassword(spassword []byte, salt []byte, iterations int) {
+	s.iterate = iterations
+	s.salted_password = spassword
+	s.salt = salt
+}
+
 // Parses Client First message and populates Scram's internal fields
 // related to binding, auth_id, username, cnonce
 func (s *Scram) ParseClientFirst(client_first []byte) error {
