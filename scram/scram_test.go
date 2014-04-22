@@ -1,6 +1,7 @@
 package scram_test
 
 import (
+	"bytes"
 	"crypto/sha1"
 	"encoding/base64"
 	"testing"
@@ -69,6 +70,20 @@ func TestStandardExample(t *testing.T) {
 	if base64.StdEncoding.EncodeToString(s.Proof()) != std_base64_proof {
 		t.Log("Epected", std_base64_proof, "Got", base64.StdEncoding.EncodeToString(s.Proof()))
 		t.Fatal("Wrong proof value generated")
+	}
+
+	eproof, err := scram.ExtractProof([]byte(std_expect_client_final))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if bytes.Equal(s.Proof(), eproof) {
+		t.Logf("Expected %x\nGot      %x", eproof, s.Proof())
+		t.Fatal("Wrong proof value generated")
+	}
+
+	if !s.CheckProof(eproof) {
+		t.Fatal("Proof should be valid")
 	}
 
 	if s.ServerReply() != std_expect_server_final {
