@@ -175,9 +175,9 @@ func (s *Scram) CNonce() string {
 
 func (s *Scram) Nonce() string {
 	if len(s.nonce) == 0 {
-		s.nonce = s.cnonce + s.gen.GetNonce()
+		s.nonce = s.CNonce() + s.gen.GetNonce()
 	}
-	return string(s.nonce)
+	return s.nonce
 }
 
 func (s *Scram) getHash(client_key []byte) []byte {

@@ -46,7 +46,7 @@ func eachToken(mess []byte, sep byte, predicate func(token []byte) error) error 
 }
 
 func validateMessage(mess []byte) error {
-	if !bytes.HasPrefix(mess, []byte{'y', 'n', 'p'}) {
+	if mess[0] != 'y' && mess[0] != 'n' && mess[0] != 'p' {
 		return WrongClientMessage("Wrong start byte")
 	}
 	return nil
