@@ -53,7 +53,14 @@ func New(cons HashConstructor, use_binding bool, gen Generator) *Scram {
 	return &Scram{cons: cons, gen: gen, binding: binding}
 }
 
+func (s *Scram) Binding() byte {
+	return s.binding
+}
+
 func (s *Scram) UserName() string {
+	if s.auth_id != "" {
+		return s.auth_id
+	}
 	return s.username
 }
 

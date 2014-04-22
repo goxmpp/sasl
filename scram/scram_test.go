@@ -15,6 +15,8 @@ const (
 	std_base64_proof        = "v0X8v3Bz2T0CJGbJQyF0X+HI4Ts="
 	std_base64_verification = "rmF9pqV8S7suAoZWja4dJRkFsKQ="
 
+	std_cnonce = "fyko+d2lbbFgONRv9qkxdawL"
+
 	std_expect_client_first = "n,,n=user,r=fyko+d2lbbFgONRv9qkxdawL"
 	std_expect_server_first = "r=fyko+d2lbbFgONRv9qkxdawL3rfcNHYJY1ZVvWVs7j,s=QSXCR+Q6sek8bf92,i=4096"
 	std_expect_client_final = "c=biws,r=fyko+d2lbbFgONRv9qkxdawL3rfcNHYJY1ZVvWVs7j,p=v0X8v3Bz2T0CJGbJQyF0X+HI4Ts="
@@ -94,5 +96,32 @@ func TestStandardExample(t *testing.T) {
 	if std_base64_verification != base64.StdEncoding.EncodeToString(s.Verification()) {
 		t.Log("Epected", std_base64_verification, "Got", base64.StdEncoding.EncodeToString(s.Verification()))
 		t.Fatal("Wrong verification value generated")
+	}
+}
+
+func TestParsing(t *testing.T) {
+	mocgen := &StdGenerator{counter: 0}
+	s := scram.New(sha1.New, false, mocgen)
+
+	if err := s.ParseClientFirst([]byte(std_expect_client_first)); err != nil {
+		t.Fatal("Error parsing Client First:", err)
+	}
+
+	if s.CNonce() != std_cnonce {
+		t.Fatal("CNonce doesn't match")
+	}
+
+	if s.UserName() != username {
+		t.Fatal("Username doesn't match")
+	}
+
+	if s.Binding() != 'n' {
+		t.Fatal("Binding doens't match")
+	}
+
+	if err := s.ParseClientFirst([]byte("w=rong")); err == nil {
+		t.Fatal("Should fail on wrong Client First message")
+	} else {
+		t.Log("Wrong message parsing returned:", err)
 	}
 }
