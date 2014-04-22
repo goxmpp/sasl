@@ -5,6 +5,9 @@ import (
 	"encoding/base64"
 )
 
+// Extracts proof from Server First message and Base64 decodes it.
+// Doens't do any checks except checks that there is at least one
+// proof, not more than one proof and proof is Base64-encoded
 func ExtractProof(mess []byte) ([]byte, error) {
 	var b64proof []byte
 	err := eachToken(mess, ',', func(token []byte) error {
