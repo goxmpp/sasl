@@ -63,8 +63,8 @@ func TestStandardExample(t *testing.T) {
 	}
 
 	s.SaltPassword([]byte(password))
-	if s.ClientReply() != std_expect_client_final {
-		t.Log("Expected", std_expect_client_final, "Got", s.ClientReply())
+	if s.ClientFinal() != std_expect_client_final {
+		t.Log("Expected", std_expect_client_final, "Got", s.ClientFinal())
 		t.Fatal("Client Final doesn't match expected Client Final")
 	}
 
@@ -87,8 +87,8 @@ func TestStandardExample(t *testing.T) {
 		t.Fatal("Proof should be valid")
 	}
 
-	if s.ServerReply() != std_expect_server_final {
-		t.Log("Expected", std_expect_server_final, "Got", s.ServerReply())
+	if s.ServerFinal() != std_expect_server_final {
+		t.Log("Expected", std_expect_server_final, "Got", s.ServerFinal())
 		t.Fatal("Server Final doesn't match expected Server Final")
 	}
 

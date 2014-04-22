@@ -83,12 +83,12 @@ func (s *Scram) ServerFirst() string {
 }
 
 // Generated Client Final message. SaltPassword should be called before this method usage
-func (s *Scram) ClientReply() string {
+func (s *Scram) ClientFinal() string {
 	return fmt.Sprintf("%s,p=%s", s.clientReplyNotProof(), base64.StdEncoding.EncodeToString(s.proof()))
 }
 
 // Generates Server Final Message
-func (s *Scram) ServerReply() string {
+func (s *Scram) ServerFinal() string {
 	return fmt.Sprintf("v=%s", base64.StdEncoding.EncodeToString(s.verification()))
 }
 
