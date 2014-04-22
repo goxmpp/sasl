@@ -1,0 +1,11 @@
+language: go
+
+go:
+    - 1.2
+    - 1.2.1
+    - release
+    - tip
+
+branches:
+    only:
+        - master
