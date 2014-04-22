@@ -1,12 +1,10 @@
-package scram_test
+package scram
 
 import (
 	"bytes"
 	"crypto/sha1"
 	"encoding/base64"
 	"testing"
-
-	"github.com/azhavnerchik/sasl/scram"
 )
 
 const (
@@ -16,6 +14,7 @@ const (
 	std_base64_verification = "rmF9pqV8S7suAoZWja4dJRkFsKQ="
 
 	std_cnonce = "fyko+d2lbbFgONRv9qkxdawL"
+	std_nonce  = "fyko+d2lbbFgONRv9qkxdawL3rfcNHYJY1ZVvWVs7j"
 
 	std_expect_client_first = "n,,n=user,r=fyko+d2lbbFgONRv9qkxdawL"
 	std_expect_server_first = "r=fyko+d2lbbFgONRv9qkxdawL3rfcNHYJY1ZVvWVs7j,s=QSXCR+Q6sek8bf92,i=4096"
@@ -51,7 +50,7 @@ func (g StdGenerator) GetIterations() int {
 
 func TestStandardExample(t *testing.T) {
 	mocgen := &StdGenerator{counter: 0}
-	s := scram.New(sha1.New, false, mocgen)
+	s := New(sha1.New, false, mocgen)
 
 	if s.ClientFirst(username) != std_expect_client_first {
 		t.Log("Expected", std_expect_client_first, "Got", s.ClientFirst(username))
@@ -69,18 +68,18 @@ func TestStandardExample(t *testing.T) {
 		t.Fatal("Client Final doesn't match expected Client Final")
 	}
 
-	if base64.StdEncoding.EncodeToString(s.Proof()) != std_base64_proof {
-		t.Log("Epected", std_base64_proof, "Got", base64.StdEncoding.EncodeToString(s.Proof()))
+	if base64.StdEncoding.EncodeToString(s.genProof()) != std_base64_proof {
+		t.Log("Epected", std_base64_proof, "Got", base64.StdEncoding.EncodeToString(s.genProof()))
 		t.Fatal("Wrong proof value generated")
 	}
 
-	eproof, err := scram.ExtractProof([]byte(std_expect_client_final))
+	eproof, err := ExtractProof([]byte(std_expect_client_final))
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	if bytes.Equal(s.Proof(), eproof) {
-		t.Logf("Expected %x\nGot      %x", eproof, s.Proof())
+	if bytes.Equal(s.genProof(), eproof) {
+		t.Logf("Expected %x\nGot      %x", eproof, s.genProof())
 		t.Fatal("Wrong proof value generated")
 	}
 
@@ -99,15 +98,15 @@ func TestStandardExample(t *testing.T) {
 	}
 }
 
-func TestParsing(t *testing.T) {
+func TestClientParsing(t *testing.T) {
 	mocgen := &StdGenerator{counter: 0}
-	s := scram.New(sha1.New, false, mocgen)
+	s := New(sha1.New, false, mocgen)
 
 	if err := s.ParseClientFirst([]byte(std_expect_client_first)); err != nil {
 		t.Fatal("Error parsing Client First:", err)
 	}
 
-	if s.CNonce() != std_cnonce {
+	if s.getCNonce() != std_cnonce {
 		t.Fatal("CNonce doesn't match")
 	}
 
@@ -128,4 +127,20 @@ func TestParsing(t *testing.T) {
 	} else {
 		t.Log("Wrong message parsing returned:", err)
 	}
+}
+
+func TestServerParsing(t *testing.T) {
+	mocgen := &StdGenerator{counter: 0}
+	s := New(sha1.New, false, mocgen)
+
+	s.ClientFirst(username) // Just to ganerate nonces and other stuff
+
+	if err := s.ParseServerFirst([]byte(std_expect_server_first)); err != nil {
+		t.Fatal("Error parsing Server First:", err)
+	}
+
+	if s.getNonce() != std_nonce {
+		t.Fatal("Nonce doesn't match")
+	}
+
 }
