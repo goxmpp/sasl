@@ -2,24 +2,30 @@ package scram
 
 import (
 	"crypto/hmac"
-	"crypto/rand"
 	"encoding/base64"
 	"fmt"
 	"hash"
-	mrand "math/rand"
 	"strings"
-	"time"
 )
 
 const (
-	CLIENT_KEY     = "Client Key"
-	SERVER_KEY     = "Server Key"
-	MIN_ITERATIONS = 4096
-	MAX_ITERATIONS = 10000
+	CLIENT_KEY = "Client Key"
+	SERVER_KEY = "Server Key"
 )
 
-type scram struct {
-	cons func() hash.Hash // Hash function constructor used in scram
+var DefaultGenerator Generators
+
+type Generator interface {
+	GetNonce() string
+	GetSalt() []byte
+	GetIterations() int
+}
+
+type HashConstructor func() hash.Hash
+
+type Scram struct {
+	cons HashConstructor // Hash function constructor used in Scram
+	gen  Generator       // Salt, Nonce and Iterations generator
 
 	password        string // Plain text password
 	salted_password []byte // Salted password
@@ -33,51 +39,57 @@ type scram struct {
 	binding         byte   // binding indicator used for GS2
 }
 
-func New(cons func() hash.Hash) *scram {
-	return &scram{}
+func New(cons HashConstructor, use_binding bool, gen Generator) *Scram {
+	if gen == nil {
+		gen = DefaultGenerator
+	}
+
+	var binding byte = 'n'
+	if use_binding {
+		binding = 'y'
+	}
+
+	return &Scram{cons: cons, gen: gen, binding: binding}
 }
 
-func (s *scram) UserName() string {
+func (s *Scram) UserName() string {
 	return s.username
 }
 
-func (s *scram) ClientFirst(username string) string {
+func (s *Scram) ClientFirst(username string) string {
 	s.username = saslPrepare(username)
-	return fmt.Sprintf("%s,%s", s.bindString(), s.bareClientFirst())
+	return fmt.Sprintf("%s%s", s.bindString(), s.bareClientFirst())
 }
 
-func (s *scram) ServerFirst(salt []byte, iterations int) string {
-	s.setSalt(salt)
-	s.setIterations(iterations)
+func (s *Scram) ServerFirst() string {
 	return s.serverFirst()
 }
 
-func (s *scram) serverFirst() string {
-	return fmt.Sprintf("r=%s,s=%s,i=%d", s.nonce, base64.StdEncoding.EncodeToString(s.Salt()), s.Iterations())
+func (s *Scram) serverFirst() string {
+	return fmt.Sprintf("r=%s,s=%s,i=%d", s.Nonce(), base64.StdEncoding.EncodeToString(s.Salt()), s.Iterations())
 }
 
-func (s *scram) ClientReply() string {
-	if len(s.proof) == 0 {
-		s.genProof()
-	}
-
-	return fmt.Sprintf("%s,p=%s", s.clientReplyNotProof(), base64.StdEncoding.EncodeToString(s.proof))
+func (s *Scram) ClientReply() string {
+	return fmt.Sprintf("%s,p=%s", s.clientReplyNotProof(), base64.StdEncoding.EncodeToString(s.Proof()))
 }
 
-func (s *scram) ServerReply() string {
-	ss := base64.StdEncoding.EncodeToString(s.getServerSignature(s.authMessage(), s.getServerKey()))
-	return fmt.Sprintf("v=%s", ss)
+func (s *Scram) ServerReply() string {
+	return fmt.Sprintf("v=%s", base64.StdEncoding.EncodeToString(s.Verification()))
 }
 
-func (s *scram) ParseClientFirst(client_first string) {
-
+func (s *Scram) Verification() []byte {
+	return s.getServerSignature(s.authMessage(), s.getServerKey())
 }
 
-func (s *scram) ParseServerFirst(server_first string) {
+func (s *Scram) ParseClientFirst(client_first string) {
 
 }
 
-func (s *scram) CheckProof() bool {
+func (s *Scram) ParseServerFirst(server_first string) {
+
+}
+
+func (s *Scram) CheckProof() bool {
 	if len(s.salted_password) == 0 {
 		s.SaltPassword([]byte(s.password))
 	}
@@ -91,19 +103,9 @@ func (s *scram) CheckProof() bool {
 	return fmt.Sprintf("%x", s.getHash(rck)) == fmt.Sprintf("%x", storek)
 }
 
-func (s *scram) setSalt(salt []byte) {
-	if len(salt) > 0 {
-		s.salt = make([]byte, len(salt))
-		copy(s.salt, salt)
-	}
-}
-
-func (s *scram) Salt() []byte {
+func (s *Scram) Salt() []byte {
 	if len(s.salt) == 0 {
-		s.salt = make([]byte, 30)
-		if _, err := rand.Read(s.salt); err != nil {
-			panic(err) // Just die
-		}
+		s.salt = s.gen.GetSalt()
 	}
 
 	// Return a copy of generated salt, so user can modify it as she wants
@@ -112,19 +114,42 @@ func (s *scram) Salt() []byte {
 	return result
 }
 
-func (s *scram) getHash(client_key []byte) []byte {
+func (s *Scram) CNonce() string {
+	if len(s.cnonce) == 0 {
+		s.cnonce = s.gen.GetNonce()
+	}
+	return s.cnonce
+}
+
+func (s *Scram) Nonce() string {
+	if len(s.nonce) == 0 {
+		s.nonce = s.cnonce + s.gen.GetNonce()
+	}
+	return string(s.nonce)
+}
+
+func (s *Scram) getHash(client_key []byte) []byte {
 	h := s.cons()
 	h.Write(client_key)
 	return h.Sum(nil)
 }
 
 func saslPrepare(username string) string {
-	panic("Not implemented")
+	//panic("Not implemented")
+	return username
 }
 
-func (s *scram) genProof() {
+func (s *Scram) Proof() []byte {
+	if len(s.proof) == 0 {
+		s.genProof()
+	}
+
+	return s.proof
+}
+
+func (s *Scram) genProof() {
 	if len(s.salted_password) == 0 {
-		s.SaltPassword([]byte(s.password))
+		panic("Salt password first")
 	}
 
 	clientk := s.getClientKey()
@@ -136,22 +161,14 @@ func (s *scram) genProof() {
 	s.proof = byteXOR(client_sig, clientk)
 }
 
-func (s *scram) setIterations(iterations int) int {
-	if iterations != 0 && iterations > MIN_ITERATIONS {
-		s.iterations = iterations
+func (s *Scram) Iterations() int {
+	if s.iterations == 0 {
+		s.iterations = s.gen.GetIterations()
 	}
 	return s.iterations
 }
 
-func (s *scram) Iterations() int {
-	if s.iterations == 0 { // Generate if not set
-		mrand.Seed(time.Now().UnixNano())
-		s.iterations = MIN_ITERATIONS + mrand.Intn(MAX_ITERATIONS-MIN_ITERATIONS)
-	}
-	return s.iterations
-}
-
-func (s *scram) SaltPassword(password []byte) []byte {
+func (s *Scram) SaltPassword(password []byte) []byte {
 	mac := hmac.New(s.cons, password)
 
 	salt := s.Salt()
@@ -177,25 +194,25 @@ func (s *scram) SaltPassword(password []byte) []byte {
 	return s.salted_password
 }
 
-func (s *scram) bareClientFirst() string {
-	return fmt.Sprintf("n=%s,r=%s", s.username, s.cnonce)
+func (s *Scram) bareClientFirst() string {
+	return fmt.Sprintf("n=%s,r=%s", s.username, s.CNonce())
 }
 
-func (s *scram) bindString() string {
+func (s *Scram) bindString() string {
 	// Client first message should start with 'n', 'y' or 'p'
 	// otherwise it should be treated as invalid
 	authid := ""
 	if len(s.auth_id) > 0 {
 		authid = fmt.Sprintf("a=%s", s.auth_id)
 	}
-	return fmt.Sprintf("%c,%s", s.binding, authid)
+	return fmt.Sprintf("%c,%s,", s.binding, authid)
 }
 
-func (s *scram) clientReplyNotProof() string {
+func (s *Scram) clientReplyNotProof() string {
 	return fmt.Sprintf("c=%s,r=%s", base64.StdEncoding.EncodeToString([]byte(s.bindString())), s.nonce)
 }
 
-func (s *scram) authMessage() string {
+func (s *Scram) authMessage() string {
 	return strings.Join([]string{s.bareClientFirst(), s.serverFirst(), s.clientReplyNotProof()}, ",")
 }
 
@@ -207,24 +224,24 @@ func byteXOR(left, right []byte) []byte {
 	return res
 }
 
-func (s *scram) getClientKey() []byte {
+func (s *Scram) getClientKey() []byte {
 	mac := hmac.New(s.cons, s.salted_password)
 	mac.Write([]byte(CLIENT_KEY))
 	return mac.Sum(nil)
 }
 
-func (s *scram) getServerKey() []byte {
+func (s *Scram) getServerKey() []byte {
 	mac := hmac.New(s.cons, s.salted_password)
 	mac.Write([]byte(SERVER_KEY))
 	return mac.Sum(nil)
 }
-func (s *scram) getServerSignature(auth string, serverk []byte) []byte {
+func (s *Scram) getServerSignature(auth string, serverk []byte) []byte {
 	ssmac := hmac.New(s.cons, serverk)
 	ssmac.Write([]byte(auth))
 	return ssmac.Sum(nil)
 }
 
-func (s *scram) getClientSignature(auth string, storek []byte) []byte {
+func (s *Scram) getClientSignature(auth string, storek []byte) []byte {
 	skmac := hmac.New(s.cons, storek)
 	skmac.Write([]byte(auth))
 	return skmac.Sum(nil)
