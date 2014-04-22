@@ -111,11 +111,15 @@ func TestParsing(t *testing.T) {
 		t.Fatal("CNonce doesn't match")
 	}
 
+	if s.AuthID() != username {
+		t.Fatal("AuthID was parsed incorrectly")
+	}
+
 	if s.UserName() != username {
 		t.Fatal("Username doesn't match")
 	}
 
-	if s.Binding() != 'n' {
+	if s.BindingSupported() {
 		t.Fatal("Binding doens't match")
 	}
 

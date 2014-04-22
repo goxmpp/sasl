@@ -18,8 +18,11 @@ const (
 var DefaultGenerator Generators
 
 type Generator interface {
+	// Method used in CNonce and Nonce generation
 	GetNonce() string
+	// Salt derivation function
 	GetSalt() []byte
+	// Iterations count derivation function
 	GetIterations() int
 }
 
@@ -40,6 +43,11 @@ type Scram struct {
 	binding         byte   // binding indicator used for GS2
 }
 
+// Created new object that can be used for authentication session.
+// Requires:
+// - Hash function constructor
+// - boolean to specify if channel binding is supported
+// - optional generator object. nil can be provided - then default generator will be used
 func New(cons HashConstructor, use_binding bool, gen Generator) *Scram {
 	if gen == nil {
 		gen = DefaultGenerator
@@ -53,42 +61,53 @@ func New(cons HashConstructor, use_binding bool, gen Generator) *Scram {
 	return &Scram{cons: cons, gen: gen, binding: binding}
 }
 
-func (s *Scram) Binding() byte {
-	return s.binding
+// Returns true if channel binding is supported
+func (s *Scram) BindingSupported() bool {
+	return s.binding == 'y'
 }
 
-func (s *Scram) UserName() string {
+// Returns AuthID for current authentication session.
+// If Client First message didn't provide AuthID - UserName will be used
+func (s *Scram) AuthID() string {
 	if s.auth_id != "" {
 		return s.auth_id
 	}
 	return s.username
 }
 
+// Returns UserName provided for Client First message
+func (s *Scram) UserName() string {
+	return s.username
+}
+
+// Generates Client First message
 func (s *Scram) ClientFirst(username string) string {
 	s.username = saslPrepare(username)
 	return fmt.Sprintf("%s%s", s.bindString(), s.bareClientFirst())
 }
 
+// Generates Server First message. SaltPassword should be called before this method usage
 func (s *Scram) ServerFirst() string {
 	return s.serverFirst()
 }
 
-func (s *Scram) serverFirst() string {
-	return fmt.Sprintf("r=%s,s=%s,i=%d", s.Nonce(), base64.StdEncoding.EncodeToString(s.Salt()), s.Iterations())
-}
-
+// Generated Client Final message. SaltPassword should be called before this method usage
 func (s *Scram) ClientReply() string {
 	return fmt.Sprintf("%s,p=%s", s.clientReplyNotProof(), base64.StdEncoding.EncodeToString(s.Proof()))
 }
 
+// Generates Server Final Message
 func (s *Scram) ServerReply() string {
 	return fmt.Sprintf("v=%s", base64.StdEncoding.EncodeToString(s.Verification()))
 }
 
+// Returns slice of bytes used in Server Final message
 func (s *Scram) Verification() []byte {
 	return s.getServerSignature(s.authMessage(), s.getServerKey())
 }
 
+// Parses Client First message and populates Scram's internal fields
+// related to binding, auth_id, username, cnonce
 func (s *Scram) ParseClientFirst(client_first []byte) error {
 	auth_pref := []byte{'a', '='}
 
@@ -119,6 +138,8 @@ func (s *Scram) ParseClientFirst(client_first []byte) error {
 	})
 }
 
+// Parses Server First message and populates Scram's internal fields
+// like server nonce, salt, iterations count
 func (s *Scram) ParseServerFirst(server_first []byte) error {
 	return eachToken(server_first, ',', func(token []byte) error {
 		k, v := extractKeyValue(token, '=')
@@ -148,6 +169,7 @@ func (s *Scram) ParseServerFirst(server_first []byte) error {
 	})
 }
 
+// Check's that received proof matches expected one
 func (s *Scram) CheckProof(proof []byte) bool {
 	if len(s.salted_password) == 0 {
 		panic("Salt password first") // TODO refactor this
@@ -162,6 +184,8 @@ func (s *Scram) CheckProof(proof []byte) bool {
 	return bytes.Equal(s.getHash(rck), storek)
 }
 
+// Gererates (if necessary) and returns salt as slice of bites.
+// If Salt was parsed from Server First message - just returns salt parsed from that message
 func (s *Scram) Salt() []byte {
 	if len(s.salt) == 0 {
 		s.salt = s.gen.GetSalt()
@@ -173,6 +197,8 @@ func (s *Scram) Salt() []byte {
 	return result
 }
 
+// Genarates (if necessary) and returns CNonce as string
+// If CNonce was parsed from Client First message - parsed value will be returned
 func (s *Scram) CNonce() string {
 	if len(s.cnonce) == 0 {
 		s.cnonce = s.gen.GetNonce()
@@ -180,6 +206,8 @@ func (s *Scram) CNonce() string {
 	return s.cnonce
 }
 
+// Genarates (if necessary) and returns Nonce as string
+// If Nonce was parsed from Server First message - parsed value will be returned
 func (s *Scram) Nonce() string {
 	if len(s.nonce) == 0 {
 		s.nonce = s.CNonce() + s.gen.GetNonce()
@@ -187,12 +215,7 @@ func (s *Scram) Nonce() string {
 	return s.nonce
 }
 
-func (s *Scram) getHash(client_key []byte) []byte {
-	h := s.cons()
-	h.Write(client_key)
-	return h.Sum(nil)
-}
-
+// Generates (if wasn't generated before) and returns proof as slice of bytes
 func (s *Scram) Proof() []byte {
 	if len(s.proof) == 0 {
 		s.genProof()
@@ -201,20 +224,8 @@ func (s *Scram) Proof() []byte {
 	return s.proof
 }
 
-func (s *Scram) genProof() {
-	if len(s.salted_password) == 0 {
-		panic("Salt password first")
-	}
-
-	clientk := s.getClientKey()
-
-	storek := s.getHash(clientk)
-
-	client_sig := s.getClientSignature(s.authMessage(), storek)
-
-	s.proof = byteXOR(client_sig, clientk)
-}
-
+// Genarates (if necessary) and returns Iterations count as int
+// If Iterations was parsed from Server First message - parsed value will be returned
 func (s *Scram) Iterations() int {
 	if s.iterations == 0 {
 		s.iterations = s.gen.GetIterations()
@@ -222,6 +233,9 @@ func (s *Scram) Iterations() int {
 	return s.iterations
 }
 
+// Salts password and retrun salted password as slice of bytes.
+// Salt and Iterations values will be generated as needed
+// if they were not parsed from Server First message
 func (s *Scram) SaltPassword(password []byte) []byte {
 	mac := hmac.New(s.cons, password)
 
@@ -246,6 +260,30 @@ func (s *Scram) SaltPassword(password []byte) []byte {
 	s.salted_password = result
 
 	return s.salted_password
+}
+
+func (s *Scram) serverFirst() string {
+	return fmt.Sprintf("r=%s,s=%s,i=%d", s.Nonce(), base64.StdEncoding.EncodeToString(s.Salt()), s.Iterations())
+}
+
+func (s *Scram) genProof() {
+	if len(s.salted_password) == 0 {
+		panic("Salt password first")
+	}
+
+	clientk := s.getClientKey()
+
+	storek := s.getHash(clientk)
+
+	client_sig := s.getClientSignature(s.authMessage(), storek)
+
+	s.proof = byteXOR(client_sig, clientk)
+}
+
+func (s *Scram) getHash(client_key []byte) []byte {
+	h := s.cons()
+	h.Write(client_key)
+	return h.Sum(nil)
 }
 
 func (s *Scram) bareClientFirst() string {
