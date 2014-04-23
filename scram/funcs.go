@@ -9,25 +9,9 @@ import (
 // Doens't do any checks except checks that there is at least one
 // proof, not more than one proof and proof is Base64-encoded
 func ExtractProof(mess []byte) ([]byte, error) {
-	var b64proof []byte
-	err := eachToken(mess, ',', func(token []byte) error {
-		k, v := extractKeyValue(token, '=')
-
-		if k[0] == 'p' {
-			if len(b64proof) != 0 {
-				return WrongClientMessage("More then one proof provided")
-			}
-			b64proof = v
-		}
-		return nil
-	})
-
+	b64proof, err := extractParameter(mess, 'p')
 	if err != nil {
 		return []byte{}, err
-	}
-
-	if len(b64proof) == 0 {
-		return []byte{}, WrongClientMessage("Proof not found")
 	}
 
 	proof := make([]byte, base64.StdEncoding.DecodedLen(len(b64proof)))
@@ -36,6 +20,45 @@ func ExtractProof(mess []byte) ([]byte, error) {
 	}
 
 	return proof, nil
+}
+
+func extractParameter(source []byte, param byte) ([]byte, error) {
+	var pvalue []byte
+	err := eachToken(source, ',', func(token []byte) error {
+		k, v := extractKeyValue(token, '=')
+
+		if k[0] == param {
+			if len(pvalue) != 0 {
+				return WrongClientMessage("More then one instance of parameter provided")
+			}
+			pvalue = v
+		}
+		return nil
+	})
+
+	if err != nil {
+		return []byte{}, err
+	}
+
+	if len(pvalue) == 0 {
+		return []byte{}, WrongClientMessage("Parameter not found")
+	}
+
+	return pvalue, nil
+}
+
+func makeCopy(src []byte) []byte {
+	result := make([]byte, len(src))
+	copy(result, src)
+	return result
+}
+
+func makeKeyValue(key byte, value []byte) []byte {
+	return append([]byte{key, '='}, value...)
+}
+
+func makeScramMessage(kvs ...[]byte) []byte {
+	return bytes.Join(kvs, []byte{','})
 }
 
 func eachToken(mess []byte, sep byte, predicate func(token []byte) error) error {

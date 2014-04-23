@@ -46,10 +46,20 @@ func New(cons HashConstructor, use_binding bool, gen Generator) *Scram {
 
 	var binding byte = 'n'
 	if use_binding {
-		binding = 'y'
+		binding = 'p'
 	}
 
 	return &Scram{cons: cons, gen: gen, binding: binding}
+}
+
+// Checks channel binding of Client Final message
+func (s *Scram) CheckClientFinal(client_final []byte) bool {
+	bind, err := extractParameter(client_final, 'c')
+	if err != nil {
+		return false
+	}
+
+	return base64.StdEncoding.EncodeToString([]byte(s.bindString())) == string(bind)
 }
 
 // Returns true if channel binding is supported
@@ -187,9 +197,7 @@ func (s *Scram) Salt() []byte {
 	}
 
 	// Return a copy of generated salt, so user can modify it as she wants
-	result := make([]byte, len(s.salt))
-	copy(result, s.salt)
-	return result
+	return makeCopy(s.salt)
 }
 
 // Salts password and retrun salted password as slice of bytes.
@@ -218,7 +226,7 @@ func (s *Scram) SaltPassword(password []byte) []byte {
 
 	s.salted_password = result
 
-	return s.salted_password
+	return makeCopy(s.salted_password)
 }
 
 // Returns slice of bytes used in Server Final message
