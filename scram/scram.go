@@ -69,9 +69,9 @@ func (s *Scram) UserName() string {
 	return string(s.username)
 }
 
-// Generates Client First message
+// Generates Client First message. Username whould be SASLprepared
 func (s *Scram) ClientFirst(username string) []byte {
-	s.username = saslPrepare(username)
+	s.username = prepare(username)
 	return append(s.bindString(), s.bareClientFirst()...)
 }
 
@@ -115,11 +115,11 @@ func (s *Scram) ParseClientFirst(client_first []byte) error {
 		case len(token) == 0 || bytes.HasPrefix(token, auth_pref):
 			if bytes.HasPrefix(token, auth_pref) {
 				_, v := extractKeyValue(token, '=')
-				s.auth_id = saslDePrep(v)
+				s.auth_id = deprepare(v)
 			}
 		case bytes.HasPrefix(token, []byte{'n', '='}):
 			_, v := extractKeyValue(token, '=')
-			s.username = saslDePrep(v)
+			s.username = deprepare(v)
 		case bytes.HasPrefix(token, []byte{'r', '='}):
 			_, v := extractKeyValue(token, '=')
 			s.client_nonce = v

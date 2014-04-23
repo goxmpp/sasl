@@ -78,14 +78,14 @@ func extractKeyValue(token []byte, sep byte) ([]byte, []byte) {
 	return kv[0], kv[1]
 }
 
-func saslDePrep(username []byte) []byte {
+func deprepare(username []byte) []byte {
 	return bytes.Replace(
 		bytes.Replace(username, []byte{'=', '3', 'D'}, []byte{'='}, -1),
 		[]byte{'=', '2', 'C'}, []byte{','}, -1,
 	)
 }
 
-func saslPrepare(username string) []byte {
+func prepare(username string) []byte {
 	un := []byte(username)
 	return bytes.Replace(
 		bytes.Replace(un, []byte{'='}, []byte{'=', '3', 'D'}, -1),
