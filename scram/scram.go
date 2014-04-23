@@ -167,7 +167,7 @@ func (s *Scram) CheckClientFinal(client_final []byte) error {
 		return err
 	}
 
-	proof, err := ExtractProof(client_final)
+	proof, err := extractProof(client_final)
 	if err != nil {
 		return err
 	}

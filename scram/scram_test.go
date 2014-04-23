@@ -73,7 +73,7 @@ func TestStandardExample(t *testing.T) {
 		t.Fatal("Wrong proof value generated")
 	}
 
-	eproof, err := ExtractProof([]byte(std_expect_client_final))
+	eproof, err := extractProof([]byte(std_expect_client_final))
 	if err != nil {
 		t.Fatal(err)
 	}

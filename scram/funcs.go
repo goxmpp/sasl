@@ -8,7 +8,7 @@ import (
 // Extracts proof from Server First message and Base64 decodes it.
 // Doens't do any checks except checks that there is at least one
 // proof, not more than one proof and proof is Base64-encoded
-func ExtractProof(mess []byte) ([]byte, error) {
+func extractProof(mess []byte) ([]byte, error) {
 	b64proof, err := extractParameter(mess, 'p')
 	if err != nil {
 		return []byte{}, err
