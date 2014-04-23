@@ -26,14 +26,14 @@ type StdGenerator struct {
 	counter int
 }
 
-func (g *StdGenerator) GetNonce() string {
+func (g *StdGenerator) GetNonce() []byte {
 	if g.counter == 0 {
 		g.counter = 1
-		return "fyko+d2lbbFgONRv9qkxdawL" // Client's nonce
+		return []byte("fyko+d2lbbFgONRv9qkxdawL") // Client's nonce
 	}
 
 	g.counter = 0
-	return "3rfcNHYJY1ZVvWVs7j" // Server's nonce
+	return []byte("3rfcNHYJY1ZVvWVs7j") // Server's nonce
 }
 
 func (g StdGenerator) GetSalt() []byte {
@@ -52,19 +52,19 @@ func TestStandardExample(t *testing.T) {
 	mocgen := &StdGenerator{counter: 0}
 	s := New(sha1.New, false, mocgen)
 
-	if s.ClientFirst(username) != std_expect_client_first {
+	if string(s.ClientFirst(username)) != std_expect_client_first {
 		t.Log("Expected", std_expect_client_first, "Got", s.ClientFirst(username))
 		t.Fatal("Client First doesn't match expected Client First")
 	}
 
-	if s.ServerFirst() != std_expect_server_first {
+	if string(s.ServerFirst()) != std_expect_server_first {
 		t.Log("Expected", std_expect_server_first, "Got", s.ServerFirst())
 		t.Fatal("Server First doesn't match expected Server First")
 	}
 
 	s.SaltPassword([]byte(password))
-	if s.ClientFinal() != std_expect_client_final {
-		t.Log("Expected", std_expect_client_final, "Got", s.ClientFinal())
+	if string(s.ClientFinal()) != std_expect_client_final {
+		t.Log("\nExpected", std_expect_client_final, "\nGot     ", string(s.ClientFinal()))
 		t.Fatal("Client Final doesn't match expected Client Final")
 	}
 
@@ -83,11 +83,11 @@ func TestStandardExample(t *testing.T) {
 		t.Fatal("Wrong proof value generated")
 	}
 
-	if !s.CheckProof(eproof) {
-		t.Fatal("Proof should be valid")
+	if err := s.CheckClientFinal([]byte(std_expect_client_final)); err != nil {
+		t.Fatal("Proof should be valid", err)
 	}
 
-	if s.ServerFinal() != std_expect_server_final {
+	if string(s.ServerFinal()) != std_expect_server_final {
 		t.Log("Expected", std_expect_server_final, "Got", s.ServerFinal())
 		t.Fatal("Server Final doesn't match expected Server Final")
 	}
@@ -106,7 +106,7 @@ func TestClientParsing(t *testing.T) {
 		t.Fatal("Error parsing Client First:", err)
 	}
 
-	if s.cnonce() != std_cnonce {
+	if string(s.cnonce()) != std_cnonce {
 		t.Fatal("CNonce doesn't match")
 	}
 
@@ -139,7 +139,7 @@ func TestServerParsing(t *testing.T) {
 		t.Fatal("Error parsing Server First:", err)
 	}
 
-	if s.nonce() != std_nonce {
+	if string(s.nonce()) != std_nonce {
 		t.Fatal("Nonce doesn't match")
 	}
 

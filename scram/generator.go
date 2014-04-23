@@ -2,7 +2,6 @@ package scram
 
 import (
 	"crypto/rand"
-	"encoding/base64"
 	mrand "math/rand"
 	"time"
 )
@@ -16,7 +15,7 @@ const (
 
 type Generator interface {
 	// Method used in CNonce and Nonce generation
-	GetNonce() string
+	GetNonce() []byte
 	// Salt derivation function
 	GetSalt() []byte
 	// Iterations count derivation function
@@ -26,12 +25,12 @@ type Generator interface {
 type Generators struct{}
 
 // Generate nonce and returns it as string
-func (g Generators) GetNonce() string {
+func (g Generators) GetNonce() []byte {
 	nonce := make([]byte, NONCE_BYTES)
 	if _, err := rand.Read(nonce); err != nil {
 		panic(err)
 	}
-	return base64.StdEncoding.EncodeToString(nonce)
+	return base64ToBytes(nonce)
 }
 
 // Generates Salt and returns is as slice of bytes

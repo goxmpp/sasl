@@ -83,14 +83,20 @@ func extractKeyValue(token []byte, sep byte) ([]byte, []byte) {
 	return kv[0], kv[1]
 }
 
-func saslDePrep(username []byte) string {
+func saslDePrep(username []byte) []byte {
 	// TODO implement real logic
-	return string(username)
+	return username
 }
 
-func saslPrepare(username string) string {
+func saslPrepare(username string) []byte {
 	//panic("Not implemented")
-	return username
+	return []byte(username)
+}
+
+func base64ToBytes(src []byte) []byte {
+	dest := make([]byte, base64.StdEncoding.EncodedLen(len(src)))
+	base64.StdEncoding.Encode(dest, src)
+	return dest
 }
 
 func byteXOR(left, right []byte) []byte {
