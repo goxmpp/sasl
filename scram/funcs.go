@@ -14,12 +14,7 @@ func ExtractProof(mess []byte) ([]byte, error) {
 		return []byte{}, err
 	}
 
-	proof := make([]byte, base64.StdEncoding.DecodedLen(len(b64proof)))
-	if _, err := base64.StdEncoding.Decode(proof, b64proof); err != nil {
-		return []byte{}, nil
-	}
-
-	return proof, nil
+	return base64.StdEncoding.DecodeString(string(b64proof))
 }
 
 func extractParameter(source []byte, param byte) ([]byte, error) {
@@ -84,13 +79,18 @@ func extractKeyValue(token []byte, sep byte) ([]byte, []byte) {
 }
 
 func saslDePrep(username []byte) []byte {
-	// TODO implement real logic
-	return username
+	return bytes.Replace(
+		bytes.Replace(username, []byte{'=', '3', 'D'}, []byte{'='}, -1),
+		[]byte{'=', '2', 'C'}, []byte{','}, -1,
+	)
 }
 
 func saslPrepare(username string) []byte {
-	//panic("Not implemented")
-	return []byte(username)
+	un := []byte(username)
+	return bytes.Replace(
+		bytes.Replace(un, []byte{'='}, []byte{'=', '3', 'D'}, -1),
+		[]byte{','}, []byte{'=', '2', 'C'}, -1,
+	)
 }
 
 func base64ToBytes(src []byte) []byte {

@@ -78,8 +78,10 @@ func TestStandardExample(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if bytes.Equal(s.proof(), eproof) {
-		t.Logf("Expected %x\nGot      %x", eproof, s.proof())
+	if !bytes.Equal(s.proof(), eproof) {
+		t.Log(s.proof())
+		t.Log(eproof)
+		t.Logf("\nExpected %x\nGot      %x", eproof, s.proof())
 		t.Fatal("Wrong proof value generated")
 	}
 
@@ -90,6 +92,10 @@ func TestStandardExample(t *testing.T) {
 	if string(s.ServerFinal()) != std_expect_server_final {
 		t.Log("Expected", std_expect_server_final, "Got", s.ServerFinal())
 		t.Fatal("Server Final doesn't match expected Server Final")
+	}
+
+	if err := s.CheckServerFinal([]byte(std_expect_server_final)); err != nil {
+		t.Fatal("Verification check failed", err)
 	}
 
 	if std_base64_verification != base64.StdEncoding.EncodeToString(s.verification()) {

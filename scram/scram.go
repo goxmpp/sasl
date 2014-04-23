@@ -178,32 +178,21 @@ func (s *Scram) CheckClientFinal(client_final []byte) error {
 	return nil
 }
 
-func (s *Scram) checkBinding(client_final []byte) error {
-	bind, err := extractParameter(client_final, 'c')
+func (s *Scram) CheckServerFinal(sfinal []byte) error {
+	b64ver, err := extractParameter(sfinal, 'v')
 	if err != nil {
 		return err
 	}
 
-	if !bytes.Equal(base64ToBytes(s.bindString()), bind) {
-		return WrongClientMessage("Invalid binding specified")
+	verification, err := base64.StdEncoding.DecodeString(string(b64ver))
+	if err != nil {
+		return err
 	}
 
+	if !bytes.Equal(s.verification(), verification) {
+		return WrongServerMessage("Wrong verification provided")
+	}
 	return nil
-}
-
-// Check's that received proof matches expected one
-func (s *Scram) checkProof(proof []byte) bool {
-	if len(s.salted_password) == 0 {
-		panic("Salt password first") // TODO refactor this
-	}
-
-	storek := s.getHash(s.getClientKey())
-
-	client_sig := s.getClientSignature(s.authMessage(), storek)
-
-	rck := byteXOR(client_sig, proof)
-
-	return bytes.Equal(s.getHash(rck), storek)
 }
 
 // Gererates (if necessary) and returns salt as slice of bites.
@@ -244,6 +233,34 @@ func (s *Scram) SaltPassword(password []byte) []byte {
 	s.salted_password = result
 
 	return makeCopy(s.salted_password)
+}
+
+func (s *Scram) checkBinding(client_final []byte) error {
+	bind, err := extractParameter(client_final, 'c')
+	if err != nil {
+		return err
+	}
+
+	if !bytes.Equal(base64ToBytes(s.bindString()), bind) {
+		return WrongClientMessage("Invalid binding specified")
+	}
+
+	return nil
+}
+
+// Check's that received proof matches expected one
+func (s *Scram) checkProof(proof []byte) bool {
+	if len(s.salted_password) == 0 {
+		panic("Salt password first") // TODO refactor this
+	}
+
+	storek := s.getHash(s.getClientKey())
+
+	client_sig := s.getClientSignature(s.authMessage(), storek)
+
+	rck := byteXOR(client_sig, proof)
+
+	return bytes.Equal(s.getHash(rck), storek)
 }
 
 // Returns slice of bytes used in Server Final message
