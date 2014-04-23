@@ -35,7 +35,7 @@ type Scram struct {
 // Created new object that can be used for authentication session.
 // Requires:
 // - Hash function constructor
-// - boolean to specify if channel binding is supported
+// - boolean to specify if channel binding is supported. Binding is not really implemented yet
 // - optional generator object. nil can be provided - then default generator will be used
 func New(cons HashConstructor, use_binding bool, gen Generator) *Scram {
 	if gen == nil {
