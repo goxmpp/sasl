@@ -161,6 +161,7 @@ func (s *Scram) ParseServerFirst(server_first []byte) error {
 	})
 }
 
+// Checks Client Final message checking binding and proof values
 func (s *Scram) CheckClientFinal(client_final []byte) error {
 	if err := s.checkBinding(client_final); err != nil {
 		return err
@@ -178,6 +179,7 @@ func (s *Scram) CheckClientFinal(client_final []byte) error {
 	return nil
 }
 
+// Checks Server Final message verifying server signature
 func (s *Scram) CheckServerFinal(sfinal []byte) error {
 	b64ver, err := extractParameter(sfinal, 'v')
 	if err != nil {
