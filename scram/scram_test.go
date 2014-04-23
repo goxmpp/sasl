@@ -58,7 +58,7 @@ func TestStandardExample(t *testing.T) {
 	}
 
 	if string(s.ServerFirst()) != std_expect_server_first {
-		t.Log("Expected", std_expect_server_first, "Got", s.ServerFirst())
+		t.Log("Expected", std_expect_server_first, "Got", string(s.ServerFirst()))
 		t.Fatal("Server First doesn't match expected Server First")
 	}
 

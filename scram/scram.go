@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"crypto/hmac"
 	"encoding/base64"
-	"fmt"
 	"hash"
 	"strconv"
 )
@@ -280,8 +279,11 @@ func (s *Scram) iterations() int {
 }
 
 func (s *Scram) serverFirst() []byte {
-	it := fmt.Sprintf("i=%d", s.iterations())
-	return makeScramMessage(makeKeyValue('r', s.nonce()), makeKeyValue('s', base64ToBytes(s.Salt())), []byte(it))
+	return makeScramMessage(
+		makeKeyValue('r', s.nonce()),
+		makeKeyValue('s', base64ToBytes(s.Salt())),
+		makeKeyValue('i', []byte(strconv.Itoa(s.iterations()))),
+	)
 }
 
 func (s *Scram) proof() []byte {
