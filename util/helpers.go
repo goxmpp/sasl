@@ -3,17 +3,17 @@ package util
 import (
 	"bytes"
 	"encoding/base64"
-	"errors"
+	"fmt"
 )
 
-func ExtractParameter(source []byte, param byte) ([]byte, error) {
+func ExtractParameter(source []byte, param []byte) ([]byte, error) {
 	var pvalue []byte
 	err := EachToken(source, ',', func(token []byte) error {
 		k, v := ExtractKeyValue(token, '=')
 
-		if k[0] == param {
+		if bytes.Equal(k, param) {
 			if len(pvalue) != 0 {
-				return errors.New("More then one instance of parameter provided")
+				return fmt.Errorf("More then one instance of parameter '%s' provided", param)
 			}
 			pvalue = v
 		}
@@ -25,7 +25,7 @@ func ExtractParameter(source []byte, param byte) ([]byte, error) {
 	}
 
 	if len(pvalue) == 0 {
-		return []byte{}, errors.New("Parameter not found")
+		return []byte{}, fmt.Errorf("Parameter '%s' not found", param)
 	}
 
 	return pvalue, nil

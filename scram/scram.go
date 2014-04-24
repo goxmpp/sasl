@@ -183,7 +183,7 @@ func (s *Scram) CheckClientFinal(client_final []byte) error {
 
 // Checks Server Final message verifying server signature
 func (s *Scram) CheckServerFinal(sfinal []byte) error {
-	b64ver, err := util.ExtractParameter(sfinal, 'v')
+	b64ver, err := extractParameter(sfinal, 'v')
 	if err != nil {
 		return err
 	}
@@ -240,7 +240,7 @@ func (s *Scram) SaltPassword(password []byte) []byte {
 }
 
 func (s *Scram) checkBinding(client_final []byte) error {
-	bind, err := util.ExtractParameter(client_final, 'c')
+	bind, err := extractParameter(client_final, 'c')
 	if err != nil {
 		return err
 	}

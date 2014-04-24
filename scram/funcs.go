@@ -11,12 +11,16 @@ import (
 // Doens't do any checks except checks that there is at least one
 // proof, not more than one proof and proof is Base64-encoded
 func extractProof(mess []byte) ([]byte, error) {
-	b64proof, err := util.ExtractParameter(mess, 'p')
+	b64proof, err := extractParameter(mess, 'p')
 	if err != nil {
 		return []byte{}, err
 	}
 
 	return base64.StdEncoding.DecodeString(string(b64proof))
+}
+
+func extractParameter(mess []byte, param byte) ([]byte, error) {
+	return util.ExtractParameter(mess, []byte{param})
 }
 
 func makeKeyValue(key byte, value []byte) []byte {
