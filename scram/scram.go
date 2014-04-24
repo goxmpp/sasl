@@ -6,6 +6,8 @@ import (
 	"encoding/base64"
 	"hash"
 	"strconv"
+
+	"github.com/azhavnerchik/sasl/util"
 )
 
 const (
@@ -82,12 +84,12 @@ func (s *Scram) ServerFirst() []byte {
 
 // Generated Client Final message. SaltPassword should be called before this method usage
 func (s *Scram) ClientFinal() []byte {
-	return makeScramMessage(s.clientReplyNotProof(), makeKeyValue('p', base64ToBytes(s.proof())))
+	return util.MakeMessage(s.clientReplyNotProof(), makeKeyValue('p', util.Base64ToBytes(s.proof())))
 }
 
 // Generates Server Final Message
 func (s *Scram) ServerFinal() []byte {
-	return makeKeyValue('v', base64ToBytes(s.verification()))
+	return makeKeyValue('v', util.Base64ToBytes(s.verification()))
 }
 
 // Sets salt, salted_password and iterations count for further processing.
@@ -108,20 +110,20 @@ func (s *Scram) ParseClientFirst(client_first []byte) error {
 		return err
 	}
 
-	return eachToken(client_first, ',', func(token []byte) error {
+	return util.EachToken(client_first, ',', func(token []byte) error {
 		switch {
 		case len(token) == 1 && (token[0] == 'n' || token[0] == 'y'):
 			s.binding = token[0]
 		case len(token) == 0 || bytes.HasPrefix(token, auth_pref):
 			if bytes.HasPrefix(token, auth_pref) {
-				_, v := extractKeyValue(token, '=')
+				_, v := util.ExtractKeyValue(token, '=')
 				s.auth_id = deprepare(v)
 			}
 		case bytes.HasPrefix(token, []byte{'n', '='}):
-			_, v := extractKeyValue(token, '=')
+			_, v := util.ExtractKeyValue(token, '=')
 			s.username = deprepare(v)
 		case bytes.HasPrefix(token, []byte{'r', '='}):
-			_, v := extractKeyValue(token, '=')
+			_, v := util.ExtractKeyValue(token, '=')
 			s.client_nonce = v
 		default:
 			return WrongClientMessage("Unknown field")
@@ -133,8 +135,8 @@ func (s *Scram) ParseClientFirst(client_first []byte) error {
 // Parses Server First message and populates Scram's internal fields
 // like server nonce, salt, iterations count
 func (s *Scram) ParseServerFirst(server_first []byte) error {
-	return eachToken(server_first, ',', func(token []byte) error {
-		k, v := extractKeyValue(token, '=')
+	return util.EachToken(server_first, ',', func(token []byte) error {
+		k, v := util.ExtractKeyValue(token, '=')
 		if len(k) != 1 {
 			return WrongServerMessage("Wrong key/value pair")
 		}
@@ -181,7 +183,7 @@ func (s *Scram) CheckClientFinal(client_final []byte) error {
 
 // Checks Server Final message verifying server signature
 func (s *Scram) CheckServerFinal(sfinal []byte) error {
-	b64ver, err := extractParameter(sfinal, 'v')
+	b64ver, err := util.ExtractParameter(sfinal, 'v')
 	if err != nil {
 		return err
 	}
@@ -205,7 +207,7 @@ func (s *Scram) Salt() []byte {
 	}
 
 	// Return a copy of generated salt, so user can modify it as she wants
-	return makeCopy(s.salt)
+	return util.MakeCopy(s.salt)
 }
 
 // Salts password and retrun salted password as slice of bytes.
@@ -234,16 +236,16 @@ func (s *Scram) SaltPassword(password []byte) []byte {
 
 	s.salted_password = result
 
-	return makeCopy(s.salted_password)
+	return util.MakeCopy(s.salted_password)
 }
 
 func (s *Scram) checkBinding(client_final []byte) error {
-	bind, err := extractParameter(client_final, 'c')
+	bind, err := util.ExtractParameter(client_final, 'c')
 	if err != nil {
 		return err
 	}
 
-	if !bytes.Equal(base64ToBytes(s.bindString()), bind) {
+	if !bytes.Equal(util.Base64ToBytes(s.bindString()), bind) {
 		return WrongClientMessage("Invalid binding specified")
 	}
 
@@ -283,7 +285,7 @@ func (s *Scram) cnonce() []byte {
 // If Nonce was parsed from Server First message - parsed value will be returned
 func (s *Scram) nonce() []byte {
 	if len(s.server_nonce) == 0 {
-		s.server_nonce = append(makeCopy(s.cnonce()), s.gen.GetNonce()...)
+		s.server_nonce = append(util.MakeCopy(s.cnonce()), s.gen.GetNonce()...)
 	}
 	return s.server_nonce
 }
@@ -298,9 +300,9 @@ func (s *Scram) iterations() int {
 }
 
 func (s *Scram) serverFirst() []byte {
-	return makeScramMessage(
+	return util.MakeMessage(
 		makeKeyValue('r', s.nonce()),
-		makeKeyValue('s', base64ToBytes(s.Salt())),
+		makeKeyValue('s', util.Base64ToBytes(s.Salt())),
 		makeKeyValue('i', []byte(strconv.Itoa(s.iterations()))),
 	)
 }
@@ -330,7 +332,7 @@ func (s *Scram) getHash(client_key []byte) []byte {
 }
 
 func (s *Scram) bareClientFirst() []byte {
-	return makeScramMessage(makeKeyValue('n', s.username), makeKeyValue('r', s.cnonce()))
+	return util.MakeMessage(makeKeyValue('n', s.username), makeKeyValue('r', s.cnonce()))
 }
 
 func (s *Scram) bindString() []byte {
@@ -344,11 +346,11 @@ func (s *Scram) bindString() []byte {
 }
 
 func (s *Scram) clientReplyNotProof() []byte {
-	return makeScramMessage(makeKeyValue('c', base64ToBytes(s.bindString())), makeKeyValue('r', s.nonce()))
+	return util.MakeMessage(makeKeyValue('c', util.Base64ToBytes(s.bindString())), makeKeyValue('r', s.nonce()))
 }
 
 func (s *Scram) authMessage() []byte {
-	return makeScramMessage(s.bareClientFirst(), s.serverFirst(), s.clientReplyNotProof())
+	return util.MakeMessage(s.bareClientFirst(), s.serverFirst(), s.clientReplyNotProof())
 }
 
 func (s *Scram) getClientKey() []byte {

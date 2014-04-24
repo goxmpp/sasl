@@ -4,6 +4,8 @@ import (
 	"crypto/rand"
 	mrand "math/rand"
 	"time"
+
+	"github.com/azhavnerchik/sasl/util"
 )
 
 const (
@@ -30,7 +32,7 @@ func (g Generators) GetNonce() []byte {
 	if _, err := rand.Read(nonce); err != nil {
 		panic(err)
 	}
-	return base64ToBytes(nonce)
+	return util.Base64ToBytes(nonce)
 }
 
 // Generates Salt and returns is as slice of bytes
