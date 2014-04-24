@@ -45,6 +45,16 @@ func MakeMessage(kvs ...[]byte) []byte {
 	return bytes.Join(kvs, []byte{','})
 }
 
+func EachField(mess []byte, predicate func([]byte) error) error {
+	for _, field := range bytes.Fields(mess) {
+		if err := predicate(field); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
 func EachToken(mess []byte, sep byte, predicate func(token []byte) error) error {
 	for _, token := range bytes.Split(mess, []byte{sep}) {
 		if err := predicate(token); err != nil {
@@ -54,6 +64,7 @@ func EachToken(mess []byte, sep byte, predicate func(token []byte) error) error 
 
 	return nil
 }
+
 func ExtractKeyValue(token []byte, sep byte) ([]byte, []byte) {
 	kv := bytes.SplitN(token, []byte{sep}, 2)
 	return kv[0], kv[1]

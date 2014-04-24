@@ -5,8 +5,8 @@ type MD5 struct {
 	*response
 }
 
-func New(realms []string, alg string) *MD5 {
-	return &MD5{challenge: newChallenge(realms, []byte(alg)), response: newResponse()}
+func New() *MD5 {
+	return &MD5{challenge: newChallenge(), response: newResponse()}
 }
 
 func (m *MD5) AuthID() string {
