@@ -15,6 +15,10 @@ type MD5 struct {
 var DefaultGenerator sasl.Generator
 
 func NewMD5(gen sasl.NonceGenerator) *MD5 {
+	if gen == nil {
+		gen = DefaultGenerator
+	}
+
 	return &MD5{challenge: newChallenge(gen), response: newResponse(gen)}
 }
 

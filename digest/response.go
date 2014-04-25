@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"crypto/md5"
 	"errors"
+
 	"github.com/azhavnerchik/sasl"
 )
 
@@ -40,6 +41,10 @@ func (r *response) ParseResponse(data []byte, c *challenge) error {
 	fmap.Add("qop", &(r.qop))
 
 	return sasl.EachToken(data, ',', func(token []byte) error {
+		if !bytes.Contains(token, []byte{'='}) {
+			return errors.New("Token does not contain key value pair: %s", token)
+		}
+
 		key, val := sasl.ExtractKeyValue(token, '=')
 
 		if err := fmap.Set(string(key), bytes.Trim(val, "\"")); err != nil {

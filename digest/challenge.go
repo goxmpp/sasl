@@ -25,6 +25,7 @@ func newChallenge(gen sasl.NonceGenerator) *challenge {
 }
 
 func (c *challenge) SetQOP(qops ...string) {
+	c.qop = make([][]byte, 0)
 	for _, qop := range qops {
 		if qop == "auth" || qop == "auth-int" {
 			c.qop = append(c.qop, []byte(qop))
@@ -62,7 +63,9 @@ func appendKV(kvs [][]byte, key string, val []byte) [][]byte {
 
 func (c *challenge) Challenge() []byte {
 	challenge := [][]byte{makeKV("nonce", c.nonce), makeKV("algorithm", c.algo)}
-	challenge = appendKV(challenge, "realm", sasl.MakeMessage(c.realms...))
+	for _, realm := range c.realms {
+		challenge = appendKV(challenge, "realm", realm)
+	}
 	challenge = appendKV(challenge, "qop", sasl.MakeMessage(c.qop...))
 	challenge = appendKV(challenge, "stale", c.stale)
 	challenge = appendKV(challenge, "charset", c.charset)
