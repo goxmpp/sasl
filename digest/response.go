@@ -4,9 +4,7 @@ import (
 	"bytes"
 	"crypto/md5"
 	"errors"
-
-	"github.com/azhavnerchik/sasl/generator"
-	"github.com/azhavnerchik/sasl/mbytes"
+	"github.com/azhavnerchik/sasl"
 )
 
 const A2_AUTH_SUFFIX = "00000000000000000000000000000000"
@@ -19,9 +17,9 @@ type response struct {
 	hpassword                              []byte
 }
 
-func newResponse(gen generator.NonceGenerator) *response {
+func newResponse(gen sasl.NonceGenerator) *response {
 	return &response{
-		cnonce: mbytes.BytesToHex(gen.GetNonce(cnonce_size)),
+		cnonce: sasl.BytesToHex(gen.GetNonce(cnonce_size)),
 		nc:     []byte{0x01}, // Need to generate this somehow
 	}
 }
@@ -41,8 +39,8 @@ func (r *response) ParseResponse(data []byte, c *challenge) error {
 	fmap.Add("authzid", &(r.auth_id))
 	fmap.Add("qop", &(r.qop))
 
-	return mbytes.EachToken(data, ',', func(token []byte) error {
-		key, val := mbytes.ExtractKeyValue(token, '=')
+	return sasl.EachToken(data, ',', func(token []byte) error {
+		key, val := sasl.ExtractKeyValue(token, '=')
 
 		if err := fmap.Set(string(key), bytes.Trim(val, "\"")); err != nil {
 			return err
@@ -77,7 +75,7 @@ func (r *response) Response(username []byte, c *challenge) []byte {
 	repl = appendKV(repl, "host", r.host)
 	repl = appendKV(repl, "serv-type", r.server_type)
 
-	return mbytes.MakeMessage(repl...)
+	return sasl.MakeMessage(repl...)
 }
 
 func contains(find []byte, arr [][]byte) bool {
@@ -135,19 +133,19 @@ func (r *response) generateHash() []byte {
 		bstart = makeMessage(bstart, r.auth_id)
 	}
 	start := md5.Sum(bstart)
-	hstart := mbytes.BytesToHex(start[:])
+	hstart := sasl.BytesToHex(start[:])
 
 	bend := makeMessage([]byte("AUTHENTICATE"), r.digest_uri)
 	if contains(r.qop, [][]byte{[]byte("auth-int"), []byte("auth-conf")}) {
 		bend = makeMessage(bend, []byte(A2_AUTH_SUFFIX))
 	}
 	end := md5.Sum(bend)
-	hend := mbytes.BytesToHex(end[:])
+	hend := sasl.BytesToHex(end[:])
 
 	bhash := makeMessage(hstart, r.nonce)
 	if len(r.qop) > 0 {
 		bhash = makeMessage(bhash, r.nc, r.cnonce, r.qop)
 	}
 	hash := md5.Sum(makeMessage(bhash, hend))
-	return mbytes.BytesToHex(hash[:])
+	return sasl.BytesToHex(hash[:])
 }

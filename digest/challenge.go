@@ -4,8 +4,7 @@ import (
 	"bytes"
 	"errors"
 
-	"github.com/azhavnerchik/sasl/generator"
-	"github.com/azhavnerchik/sasl/mbytes"
+	"github.com/azhavnerchik/sasl"
 )
 
 type challenge struct {
@@ -17,9 +16,9 @@ type challenge struct {
 	stale   []byte // 'TRUE' or 'FALSE'
 }
 
-func newChallenge(gen generator.NonceGenerator) *challenge {
+func newChallenge(gen sasl.NonceGenerator) *challenge {
 	return &challenge{
-		nonce: mbytes.BytesToHex(gen.GetNonce(cnonce_size)),
+		nonce: sasl.BytesToHex(gen.GetNonce(cnonce_size)),
 		algo:  []byte("md5"),
 		qop:   [][]byte{[]byte("auth")},
 	}
@@ -51,7 +50,7 @@ func (c *challenge) SetChallengeRealms(srealms ...string) {
 }
 
 func makeKV(key string, val []byte) []byte {
-	return mbytes.MakeKeyValue([]byte(key), append(append([]byte{'"'}, val...), '"'))
+	return sasl.MakeKeyValue([]byte(key), append(append([]byte{'"'}, val...), '"'))
 }
 
 func appendKV(kvs [][]byte, key string, val []byte) [][]byte {
@@ -63,12 +62,12 @@ func appendKV(kvs [][]byte, key string, val []byte) [][]byte {
 
 func (c *challenge) Challenge() []byte {
 	challenge := [][]byte{makeKV("nonce", c.nonce), makeKV("algorithm", c.algo)}
-	challenge = appendKV(challenge, "realm", mbytes.MakeMessage(c.realms...))
-	challenge = appendKV(challenge, "qop", mbytes.MakeMessage(c.qop...))
+	challenge = appendKV(challenge, "realm", sasl.MakeMessage(c.realms...))
+	challenge = appendKV(challenge, "qop", sasl.MakeMessage(c.qop...))
 	challenge = appendKV(challenge, "stale", c.stale)
 	challenge = appendKV(challenge, "charset", c.charset)
 
-	return mbytes.MakeMessage(challenge...)
+	return sasl.MakeMessage(challenge...)
 }
 
 func (c *challenge) ParseChallenge(challenge []byte) error {
@@ -78,8 +77,8 @@ func (c *challenge) ParseChallenge(challenge []byte) error {
 	fmap.Add("nonce", &(c.nonce))
 	fmap.Add("stale", &(c.stale))
 
-	return mbytes.EachField(challenge, func(field []byte) error {
-		key, val := mbytes.ExtractKeyValue(field, '=')
+	return sasl.EachField(challenge, func(field []byte) error {
+		key, val := sasl.ExtractKeyValue(field, '=')
 
 		val = bytes.Trim(val, "\"")
 		switch string(key) {

@@ -1,6 +1,6 @@
 package digest
 
-import "github.com/azhavnerchik/sasl/generator"
+import "github.com/azhavnerchik/sasl"
 
 const (
 	nonce_size  = 16
@@ -12,9 +12,9 @@ type MD5 struct {
 	*response
 }
 
-var DefaultGenerator generator.Generator
+var DefaultGenerator sasl.Generator
 
-func NewMD5(gen generator.NonceGenerator) *MD5 {
+func NewMD5(gen sasl.NonceGenerator) *MD5 {
 	return &MD5{challenge: newChallenge(gen), response: newResponse(gen)}
 }
 
