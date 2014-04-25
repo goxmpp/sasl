@@ -5,7 +5,7 @@ import (
 	"errors"
 
 	"github.com/azhavnerchik/sasl/generator"
-	"github.com/azhavnerchik/sasl/util"
+	"github.com/azhavnerchik/sasl/mbytes"
 )
 
 type challenge struct {
@@ -19,7 +19,7 @@ type challenge struct {
 
 func newChallenge(gen generator.NonceGenerator) *challenge {
 	return &challenge{
-		nonce: util.BytesToHex(gen.GetNonce(cnonce_size)),
+		nonce: mbytes.BytesToHex(gen.GetNonce(cnonce_size)),
 		algo:  []byte("md5"),
 		qop:   [][]byte{[]byte("auth")},
 	}
@@ -51,7 +51,7 @@ func (c *challenge) SetChallengeRealms(srealms ...string) {
 }
 
 func makeKV(key string, val []byte) []byte {
-	return util.MakeKeyValue([]byte(key), append(append([]byte{'"'}, val...), '"'))
+	return mbytes.MakeKeyValue([]byte(key), append(append([]byte{'"'}, val...), '"'))
 }
 
 func appendKV(kvs [][]byte, key string, val []byte) [][]byte {
@@ -63,12 +63,12 @@ func appendKV(kvs [][]byte, key string, val []byte) [][]byte {
 
 func (c *challenge) Challenge() []byte {
 	challenge := [][]byte{makeKV("nonce", c.nonce), makeKV("algorithm", c.algo)}
-	challenge = appendKV(challenge, "realm", util.MakeMessage(c.realms...))
-	challenge = appendKV(challenge, "qop", util.MakeMessage(c.qop...))
+	challenge = appendKV(challenge, "realm", mbytes.MakeMessage(c.realms...))
+	challenge = appendKV(challenge, "qop", mbytes.MakeMessage(c.qop...))
 	challenge = appendKV(challenge, "stale", c.stale)
 	challenge = appendKV(challenge, "charset", c.charset)
 
-	return util.MakeMessage(challenge...)
+	return mbytes.MakeMessage(challenge...)
 }
 
 func (c *challenge) ParseChallenge(challenge []byte) error {
@@ -78,8 +78,8 @@ func (c *challenge) ParseChallenge(challenge []byte) error {
 	fmap.Add("nonce", &(c.nonce))
 	fmap.Add("stale", &(c.stale))
 
-	return util.EachField(challenge, func(field []byte) error {
-		key, val := util.ExtractKeyValue(field, '=')
+	return mbytes.EachField(challenge, func(field []byte) error {
+		key, val := mbytes.ExtractKeyValue(field, '=')
 
 		val = bytes.Trim(val, "\"")
 		switch string(key) {

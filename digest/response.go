@@ -6,7 +6,7 @@ import (
 	"errors"
 
 	"github.com/azhavnerchik/sasl/generator"
-	"github.com/azhavnerchik/sasl/util"
+	"github.com/azhavnerchik/sasl/mbytes"
 )
 
 const A2_AUTH_SUFFIX = "00000000000000000000000000000000"
@@ -21,7 +21,7 @@ type response struct {
 
 func newResponse(gen generator.NonceGenerator) *response {
 	return &response{
-		cnonce: util.BytesToHex(gen.GetNonce(cnonce_size)),
+		cnonce: mbytes.BytesToHex(gen.GetNonce(cnonce_size)),
 		nc:     []byte{0x01}, // Need to generate this somehow
 	}
 }
@@ -41,8 +41,8 @@ func (r *response) ParseResponse(data []byte, c *challenge) error {
 	fmap.Add("authzid", &(r.auth_id))
 	fmap.Add("qop", &(r.qop))
 
-	return util.EachToken(data, ',', func(token []byte) error {
-		key, val := util.ExtractKeyValue(token, '=')
+	return mbytes.EachToken(data, ',', func(token []byte) error {
+		key, val := mbytes.ExtractKeyValue(token, '=')
 
 		if err := fmap.Set(string(key), bytes.Trim(val, "\"")); err != nil {
 			return err
@@ -77,7 +77,7 @@ func (r *response) Response(username []byte, c *challenge) []byte {
 	repl = appendKV(repl, "host", r.host)
 	repl = appendKV(repl, "serv-type", r.server_type)
 
-	return util.MakeMessage(repl...)
+	return mbytes.MakeMessage(repl...)
 }
 
 func contains(find []byte, arr [][]byte) bool {
@@ -135,19 +135,19 @@ func (r *response) generateHash() []byte {
 		bstart = makeMessage(bstart, r.auth_id)
 	}
 	start := md5.Sum(bstart)
-	hstart := util.BytesToHex(start[:])
+	hstart := mbytes.BytesToHex(start[:])
 
 	bend := makeMessage([]byte("AUTHENTICATE"), r.digest_uri)
 	if contains(r.qop, [][]byte{[]byte("auth-int"), []byte("auth-conf")}) {
 		bend = makeMessage(bend, []byte(A2_AUTH_SUFFIX))
 	}
 	end := md5.Sum(bend)
-	hend := util.BytesToHex(end[:])
+	hend := mbytes.BytesToHex(end[:])
 
 	bhash := makeMessage(hstart, r.nonce)
 	if len(r.qop) > 0 {
 		bhash = makeMessage(bhash, r.nc, r.cnonce, r.qop)
 	}
 	hash := md5.Sum(makeMessage(bhash, hend))
-	return util.BytesToHex(hash[:])
+	return mbytes.BytesToHex(hash[:])
 }
