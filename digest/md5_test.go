@@ -1,9 +1,9 @@
-package md5_test
+package digest_test
 
 import (
 	"testing"
 
-	"github.com/azhavnerchik/sasl/md5"
+	"github.com/azhavnerchik/sasl/digest"
 )
 
 const (
@@ -33,6 +33,6 @@ func (g StdGenerator) GetNonce(ln int) []byte {
 }
 
 func TestStdExample(t *testing.T) {
-	m := md5.New(&StdGenerator{})
+	m := digest.NewMD5(&StdGenerator{})
 	_ = m
 }

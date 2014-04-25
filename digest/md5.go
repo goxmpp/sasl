@@ -14,7 +14,7 @@ type MD5 struct {
 
 var DefaultGenerator generator.Generator
 
-func New(gen generator.NonceGenerator) *MD5 {
+func NewMD5(gen generator.NonceGenerator) *MD5 {
 	return &MD5{challenge: newChallenge(gen), response: newResponse(gen)}
 }
 
