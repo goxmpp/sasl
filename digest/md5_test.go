@@ -7,19 +7,27 @@ import (
 )
 
 const (
-	std_challenge_realm  = "testrealm@host.com"
-	std_challenge_qop    = "auth,auth-int"
-	std_challenge_nonce  = "dcd98b7102dd2f0e8b11d0f600bfb0c093"
-	std_challenge_opaque = "5ccc069c403ebaf9f0171e9517f40e41"
+	std_challenge_realm   = "elwood.innosoft.com"
+	std_challenge_qop     = "auth"
+	std_challenge_nonce   = "OA6MG9tEQGm2hh"
+	std_challenge_algo    = "md5-sess"
+	std_challenge_charset = "utf-8"
 
-	std_reply_realm    = "testrealm@host.com"
-	std_reply_nonce    = "dcd98b7102dd2f0e8b11d0f600bfb0c093"
-	std_reply_uri      = "/dir/index.html"
-	std_reply_qop      = "auth"
-	std_reply_nc       = 00000001
-	std_reply_cnonce   = "0a4f113b"
-	std_reply_response = "6629fae49393a05397450978507c4ef1"
-	std_reply_opaque   = "5ccc069c403ebaf9f0171e9517f40e41"
+	std_reply_realm     = "elwood.innosoft.com"
+	std_reply_nonce     = "OA6MG9tEQGm2hh"
+	std_reply_digesturi = "imap/elwood.innosoft.com"
+	std_reply_qop       = "auth"
+	std_reply_nc        = "00000001"
+	std_reply_cnonce    = "OA6MHXh6VqTrRk"
+	std_reply_response  = "d388dad90d4bbd760a152321f2143af7"
+	std_reply_username  = "chris"
+	std_reply_charset   = "utf-8"
+
+	std_password = "secret"
+
+	std_challenge = `realm="elwood.innosoft.com",nonce="OA6MG9tEQGm2hh",qop="auth",algorithm=md5-sess,charset=utf-8`
+	//nonce="4f41364d4858683656715472526b",algorithm="md5-sess",realm="elwood.innosoft.com",qop="auth",charset="utf-8"
+	std_respnse = `charset=utf-8,username="chris",realm="elwood.innosoft.com",nonce="OA6MG9tEQGm2hh",nc=00000001,cnonce="OA6MHXh6VqTrRk",digest-uri="imap/elwood.innosoft.com",response=d388dad90d4bbd760a152321f2143af7,qop=auth`
 )
 
 type StdGenerator struct{}
@@ -34,5 +42,13 @@ func (g StdGenerator) GetNonce(ln int) []byte {
 
 func TestStdExample(t *testing.T) {
 	m := digest.NewMD5(&StdGenerator{})
-	_ = m
+
+	m.SetChallengeRealms(std_challenge_realm)
+	if err := m.SetAlgorithm("md5-sess"); err != nil {
+		t.Fatal("Could not get algorithm:", err)
+	}
+	t.Logf("Challenge %s", m.Challenge())
+	m.SetQOP("auth")
+	m.SetRealm(std_challenge_realm)
+	t.Logf("Response  %s", m.Response(std_reply_username, std_password))
 }

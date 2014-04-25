@@ -1,6 +1,10 @@
 package digest
 
-import "github.com/azhavnerchik/sasl"
+import (
+	"errors"
+
+	"github.com/azhavnerchik/sasl"
+)
 
 const (
 	nonce_size  = 16
@@ -62,4 +66,14 @@ func (m *MD5) ValidateHashed(password []byte) error {
 
 func (m *MD5) ParseResponse(response []byte) error {
 	return m.response.ParseResponse(response, m.challenge)
+}
+
+func (m *MD5) SetAlgorithm(algo string) error {
+	if algo != "md5" && algo != "md5-sess" {
+		return errors.New("Wrong algorithm specified")
+	}
+
+	m.challenge.algo = []byte(algo)
+	m.response.algo = []byte(algo)
+	return nil
 }

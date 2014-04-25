@@ -2,7 +2,6 @@ package digest
 
 import (
 	"bytes"
-	"errors"
 
 	"github.com/azhavnerchik/sasl"
 )
@@ -18,13 +17,14 @@ type challenge struct {
 
 func newChallenge(gen sasl.NonceGenerator) *challenge {
 	return &challenge{
-		nonce: sasl.BytesToHex(gen.GetNonce(cnonce_size)),
-		algo:  []byte("md5"),
-		qop:   [][]byte{[]byte("auth")},
+		nonce:   sasl.BytesToHex(gen.GetNonce(cnonce_size)),
+		algo:    []byte("md5"),
+		qop:     [][]byte{[]byte("auth")},
+		charset: []byte("utf-8"),
 	}
 }
 
-func (c *challenge) SetQOP(qops ...string) {
+func (c *challenge) SetChallengeQOPs(qops ...string) {
 	c.qop = make([][]byte, 0)
 	for _, qop := range qops {
 		if qop == "auth" || qop == "auth-int" {
@@ -33,13 +33,20 @@ func (c *challenge) SetQOP(qops ...string) {
 	}
 }
 
-func (c *challenge) SetAlgorithm(algo string) error {
-	if algo != "MD5" && algo != "MD5-sess" {
-		return errors.New("Wrong algorithm specified")
+func (c *challenge) Realms() []string {
+	realms := make([]string, len(c.realms))
+	for _, realm := range c.realms {
+		realms = append(realms, string(realm))
 	}
+	return realms
+}
 
-	c.algo = []byte(algo)
-	return nil
+func (c *challenge) QOPs() []string {
+	qops := make([]string, len(c.qop))
+	for _, qop := range c.qop {
+		qops = append(qops, string(qop))
+	}
+	return qops
 }
 
 func (c *challenge) SetChallengeRealms(srealms ...string) {
@@ -54,20 +61,27 @@ func makeKV(key string, val []byte) []byte {
 	return sasl.MakeKeyValue([]byte(key), append(append([]byte{'"'}, val...), '"'))
 }
 
-func appendKV(kvs [][]byte, key string, val []byte) [][]byte {
+func appendKVQuoted(kvs [][]byte, key string, val []byte) [][]byte {
 	if len(val) > 0 {
 		return append(kvs, makeKV(key, val))
 	}
 	return kvs
 }
 
-func (c *challenge) Challenge() []byte {
-	challenge := [][]byte{makeKV("nonce", c.nonce), makeKV("algorithm", c.algo)}
-	for _, realm := range c.realms {
-		challenge = appendKV(challenge, "realm", realm)
+func appendKV(kvs [][]byte, key string, val []byte) [][]byte {
+	if len(val) > 0 {
+		return append(kvs, sasl.MakeKeyValue([]byte(key), val))
 	}
-	challenge = appendKV(challenge, "qop", sasl.MakeMessage(c.qop...))
-	challenge = appendKV(challenge, "stale", c.stale)
+	return kvs
+}
+
+func (c *challenge) Challenge() []byte {
+	challenge := [][]byte{makeKV("nonce", c.nonce), sasl.MakeKeyValue([]byte("algorithm"), c.algo)}
+	for _, realm := range c.realms {
+		challenge = appendKVQuoted(challenge, "realm", realm)
+	}
+	challenge = appendKVQuoted(challenge, "qop", sasl.MakeMessage(c.qop...))
+	challenge = appendKVQuoted(challenge, "stale", c.stale)
 	challenge = appendKV(challenge, "charset", c.charset)
 
 	return sasl.MakeMessage(challenge...)
