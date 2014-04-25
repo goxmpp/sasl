@@ -26,7 +26,7 @@ type StdGenerator struct {
 	counter int
 }
 
-func (g *StdGenerator) GetNonce() []byte {
+func (g *StdGenerator) GetNonce(ln int) []byte {
 	if g.counter == 0 {
 		g.counter = 1
 		return []byte("fyko+d2lbbFgONRv9qkxdawL") // Client's nonce
@@ -36,7 +36,7 @@ func (g *StdGenerator) GetNonce() []byte {
 	return []byte("3rfcNHYJY1ZVvWVs7j") // Server's nonce
 }
 
-func (g StdGenerator) GetSalt() []byte {
+func (g StdGenerator) GetSalt(ln int) []byte {
 	b, err := base64.StdEncoding.DecodeString("QSXCR+Q6sek8bf92")
 	if err != nil {
 		panic(err)

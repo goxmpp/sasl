@@ -3,8 +3,15 @@ package util
 import (
 	"bytes"
 	"encoding/base64"
+	"encoding/hex"
 	"fmt"
 )
+
+func BytesToHex(src []byte) []byte {
+	res := make([]byte, hex.EncodedLen(len(src)))
+	hex.Encode(res, src)
+	return res
+}
 
 func ExtractParameter(source []byte, param []byte) ([]byte, error) {
 	var pvalue []byte

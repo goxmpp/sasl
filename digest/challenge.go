@@ -1,10 +1,10 @@
-package md5
+package digest
 
 import (
 	"bytes"
-	"crypto/rand"
 	"errors"
 
+	"github.com/azhavnerchik/sasl/generator"
 	"github.com/azhavnerchik/sasl/util"
 )
 
@@ -13,25 +13,16 @@ type challenge struct {
 	nonce   []byte
 	qop     [][]byte // auth or auth-int
 	charset []byte
-	algo    []byte // MD5 or MD5-sess, Default MD5
-	opaque  []byte
+	algo    []byte // md5 or md5-sess, Default md5
 	stale   []byte // 'TRUE' or 'FALSE'
-	domain  []byte
 }
 
-func newChallenge() *challenge {
-	nonce := make([]byte, 14)
-	if _, err := rand.Read(nonce); err != nil {
-		panic(err)
-	}
+func newChallenge(gen generator.NonceGenerator) *challenge {
 	return &challenge{
-		nonce: bytesToHex(nonce),
-		algo:  []byte("MD5"),
+		nonce: util.BytesToHex(gen.GetNonce(cnonce_size)),
+		algo:  []byte("md5"),
+		qop:   [][]byte{[]byte("auth")},
 	}
-}
-
-func (c *challenge) SetDomain(domain string) {
-	c.domain = []byte(domain)
 }
 
 func (c *challenge) SetQOP(qops ...string) {
@@ -51,7 +42,7 @@ func (c *challenge) SetAlgorithm(algo string) error {
 	return nil
 }
 
-func (c *challenge) SetRealm(srealms ...string) {
+func (c *challenge) SetChallengeRealms(srealms ...string) {
 	realms := make([][]byte, len(srealms))
 	for i, realm := range srealms {
 		realms[i] = []byte(realm)
@@ -74,8 +65,6 @@ func (c *challenge) Challenge() []byte {
 	challenge := [][]byte{makeKV("nonce", c.nonce), makeKV("algorithm", c.algo)}
 	challenge = appendKV(challenge, "realm", util.MakeMessage(c.realms...))
 	challenge = appendKV(challenge, "qop", util.MakeMessage(c.qop...))
-	challenge = appendKV(challenge, "domain", c.domain)
-	challenge = appendKV(challenge, "opaque", c.opaque)
 	challenge = appendKV(challenge, "stale", c.stale)
 	challenge = appendKV(challenge, "charset", c.charset)
 
@@ -85,10 +74,8 @@ func (c *challenge) Challenge() []byte {
 func (c *challenge) ParseChallenge(challenge []byte) error {
 	fmap := newFieldMapper()
 	fmap.Add("algorithm", &(c.algo))
-	fmap.Add("domain", &(c.domain))
 	fmap.Add("charset", &(c.charset))
 	fmap.Add("nonce", &(c.nonce))
-	fmap.Add("opaque", &(c.opaque))
 	fmap.Add("stale", &(c.stale))
 
 	return util.EachField(challenge, func(field []byte) error {
