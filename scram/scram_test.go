@@ -22,17 +22,13 @@ const (
 	std_expect_server_final = "v=rmF9pqV8S7suAoZWja4dJRkFsKQ="
 )
 
-type StdGenerator struct {
-	counter int
-}
+type StdGenerator struct{}
 
 func (g *StdGenerator) GetNonce(ln int) []byte {
-	if g.counter == 0 {
-		g.counter = 1
+	if ln == 21 {
 		return []byte("fyko+d2lbbFgONRv9qkxdawL") // Client's nonce
 	}
 
-	g.counter = 0
 	return []byte("3rfcNHYJY1ZVvWVs7j") // Server's nonce
 }
 
@@ -49,27 +45,29 @@ func (g StdGenerator) GetIterations() int {
 }
 
 func TestStandardExample(t *testing.T) {
-	mocgen := &StdGenerator{counter: 0}
-	s := New(sha1.New, false, mocgen)
+	mocgen := &StdGenerator{}
+	c := NewClient(sha1.New, mocgen)
 
-	if string(s.ClientFirst(username)) != std_expect_client_first {
-		t.Log("Expected", std_expect_client_first, "Got", s.ClientFirst(username))
+	if string(c.First(username)) != std_expect_client_first {
+		t.Log("Expected", std_expect_client_first, "Got", string(c.First(username)))
 		t.Fatal("Client First doesn't match expected Client First")
 	}
 
-	if string(s.ServerFirst()) != std_expect_server_first {
-		t.Log("Expected", std_expect_server_first, "Got", string(s.ServerFirst()))
+	s := NewServer(sha1.New, mocgen)
+	if string(s.First()) != std_expect_server_first {
+		t.Log("Expected", std_expect_server_first, "Got", string(s.First()))
 		t.Fatal("Server First doesn't match expected Server First")
 	}
 
+	c.SaltPassword([]byte(password))
 	s.SaltPassword([]byte(password))
-	if string(s.ClientFinal()) != std_expect_client_final {
-		t.Log("\nExpected", std_expect_client_final, "\nGot     ", string(s.ClientFinal()))
+	if string(c.Final()) != std_expect_client_final {
+		t.Log("\nExpected", std_expect_client_final, "\nGot     ", string(c.Final()))
 		t.Fatal("Client Final doesn't match expected Client Final")
 	}
 
-	if base64.StdEncoding.EncodeToString(s.proof()) != std_base64_proof {
-		t.Log("Epected", std_base64_proof, "Got", base64.StdEncoding.EncodeToString(s.proof()))
+	if base64.StdEncoding.EncodeToString(c.proof()) != std_base64_proof {
+		t.Log("Epected", std_base64_proof, "Got", base64.StdEncoding.EncodeToString(c.proof()))
 		t.Fatal("Wrong proof value generated")
 	}
 
@@ -78,23 +76,28 @@ func TestStandardExample(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if !bytes.Equal(s.proof(), eproof) {
-		t.Log(s.proof())
+	if !bytes.Equal(c.proof(), eproof) {
+		t.Log(c.proof())
 		t.Log(eproof)
-		t.Logf("\nExpected %x\nGot      %x", eproof, s.proof())
+		t.Logf("\nExpected %x\nGot      %x", eproof, c.proof())
 		t.Fatal("Wrong proof value generated")
+	}
+
+	s.ParseClientFirst(c.First(username))
+	if !bytes.Equal(c.proof(), s.proof()) {
+		t.Fatal("Client and Server should generate same proof")
 	}
 
 	if err := s.CheckClientFinal([]byte(std_expect_client_final)); err != nil {
 		t.Fatal("Proof should be valid", err)
 	}
 
-	if string(s.ServerFinal()) != std_expect_server_final {
-		t.Log("Expected", std_expect_server_final, "Got", s.ServerFinal())
+	if string(s.Final()) != std_expect_server_final {
+		t.Log("Expected", std_expect_server_final, "Got", s.Final())
 		t.Fatal("Server Final doesn't match expected Server Final")
 	}
 
-	if err := s.CheckServerFinal([]byte(std_expect_server_final)); err != nil {
+	if err := c.CheckServerFinal([]byte(std_expect_server_final)); err != nil {
 		t.Fatal("Verification check failed", err)
 	}
 
@@ -105,8 +108,8 @@ func TestStandardExample(t *testing.T) {
 }
 
 func TestClientParsing(t *testing.T) {
-	mocgen := &StdGenerator{counter: 0}
-	s := New(sha1.New, false, mocgen)
+	mocgen := &StdGenerator{}
+	s := NewServer(sha1.New, mocgen)
 
 	if err := s.ParseClientFirst([]byte(std_expect_client_first)); err != nil {
 		t.Fatal("Error parsing Client First:", err)
@@ -136,10 +139,10 @@ func TestClientParsing(t *testing.T) {
 }
 
 func TestServerParsing(t *testing.T) {
-	mocgen := &StdGenerator{counter: 0}
-	s := New(sha1.New, false, mocgen)
+	mocgen := &StdGenerator{}
+	s := NewClient(sha1.New, mocgen)
 
-	s.ClientFirst(username) // Just to ganerate nonces and other stuff
+	s.First(username) // Just to ganerate nonces and other stuff
 
 	if err := s.ParseServerFirst([]byte(std_expect_server_first)); err != nil {
 		t.Fatal("Error parsing Server First:", err)

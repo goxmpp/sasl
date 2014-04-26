@@ -47,10 +47,12 @@ func NewClient(opts *Options) *Client {
 }
 
 // Algorithm, Nonce, Realm, Charset and QOP will be set from challenge message
-func NewClientFromChallenge(chal []byte, opts *Options) *Client {
+func NewClientFromChallenge(chal []byte, opts *Options) (*Client, error) {
 	m := &digest{challenge: &challenge{}, response: newResponse(opts)}
 
-	m.challenge.parseChallenge(chal)
+	if err := m.challenge.parseChallenge(chal); err != nil {
+		return err
+	}
 	m.response.nonce = m.challenge.nonce
 	m.response.charset = m.challenge.charset
 	if len(m.challenge.realms) > 0 {
