@@ -83,6 +83,10 @@ func TestStdExample(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	if err := s.Validate(std_password); err != nil {
+		t.Fatal("Validation failed", err)
+	}
+
 	if !bytes.Equal(s.Final(), []byte(std_respauth)) {
 		t.Log(string(s.Final()))
 		t.Log(std_respauth)
