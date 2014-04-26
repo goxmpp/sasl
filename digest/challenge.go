@@ -2,7 +2,6 @@ package digest
 
 import (
 	"bytes"
-	"log"
 
 	"github.com/azhavnerchik/sasl"
 )
@@ -17,7 +16,7 @@ type challenge struct {
 }
 
 func newChallenge(opts *Options) *challenge {
-	algo, charset, realms, qops := "md5", "ytf-8", [][]byte{}, [][]byte{[]byte("auth")}
+	algo, charset, realms, qops := "md5", "utf-8", [][]byte{}, [][]byte{[]byte("auth")}
 	if opts.Algorithm != "" {
 		algo = opts.Algorithm
 	}
@@ -80,9 +79,7 @@ func (c *challenge) parseChallenge(challenge []byte) error {
 	fmap.Add("nonce", &(c.nonce))
 	fmap.Add("stale", &(c.stale))
 
-	log.Printf("%s", challenge)
 	return sasl.EachField(challenge, func(field []byte) error {
-		log.Printf("%s", field)
 		key, val := sasl.ExtractKeyValue(field, '=')
 
 		val = bytes.Trim(val, "\"")

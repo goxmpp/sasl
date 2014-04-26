@@ -90,7 +90,7 @@ func (m *Client) ResponseHashed(username string, password []byte) []byte {
 
 func (m *Server) Final() []byte {
 	if m.response.ok {
-		return []byte("rspauth") // TODO reply something else on failed authentication
+		return sasl.MakeKeyValue([]byte("rspauth"), m.response.responseAuth())
 	}
 	return []byte{}
 }

@@ -156,7 +156,7 @@ func (r *response) HashPassword(password []byte) []byte {
 	return x[:]
 }
 
-func (r *response) generateHash() []byte {
+func (r *response) genResponse(method []byte) []byte {
 	bstart := makeMessage(r.hpassword, r.nonce, r.cnonce)
 	if len(r.auth_id) > 0 {
 		bstart = makeMessage(bstart, r.auth_id)
@@ -164,17 +164,21 @@ func (r *response) generateHash() []byte {
 	start := md5.Sum(bstart)
 	hstart := sasl.BytesToHex(start[:])
 
-	bend := makeMessage([]byte("AUTHENTICATE"), r.digest_uri)
+	bend := makeMessage(method, r.digest_uri)
 	if sasl.Contains(r.qop, [][]byte{[]byte("auth-int"), []byte("auth-conf")}) {
 		bend = makeMessage(bend, []byte(A2_AUTH_SUFFIX))
 	}
 	end := md5.Sum(bend)
 	hend := sasl.BytesToHex(end[:])
 
-	bhash := makeMessage(hstart, r.nonce)
-	if len(r.qop) > 0 {
-		bhash = makeMessage(bhash, r.nc(), r.cnonce, r.qop)
-	}
-	hash := md5.Sum(makeMessage(bhash, hend))
+	hash := md5.Sum(makeMessage(hstart, r.nonce, r.nc(), r.cnonce, r.qop, hend))
 	return sasl.BytesToHex(hash[:])
+}
+
+func (r *response) generateHash() []byte {
+	return r.genResponse([]byte("AUTHENTICATE"))
+}
+
+func (r *response) responseAuth() []byte {
+	return r.genResponse([]byte{})
 }

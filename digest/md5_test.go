@@ -1,6 +1,9 @@
 package digest_test
 
 import (
+	"bytes"
+	"sort"
+	"strings"
 	"testing"
 
 	"github.com/azhavnerchik/sasl/digest"
@@ -26,8 +29,9 @@ const (
 	std_password = "secret"
 
 	std_challenge = `realm="elwood.innosoft.com",nonce="OA6MG9tEQGm2hh",qop="auth",algorithm=md5-sess,charset=utf-8`
-	//nonce="4f41364d4858683656715472526b",algorithm="md5-sess",realm="elwood.innosoft.com",qop="auth",charset="utf-8"
-	std_respnse = `charset=utf-8,username="chris",realm="elwood.innosoft.com",nonce="OA6MG9tEQGm2hh",nc=00000001,cnonce="OA6MHXh6VqTrRk",digest-uri="imap/elwood.innosoft.com",response=d388dad90d4bbd760a152321f2143af7,qop=auth`
+	std_respnse   = `charset=utf-8,username="chris",realm="elwood.innosoft.com",nonce="OA6MG9tEQGm2hh",nc=00000001,cnonce="OA6MHXh6VqTrRk",digest-uri="imap/elwood.innosoft.com",response=3d249750661c0fd2296cdf4bb0ea7af1,qop=auth`
+	std_respauth  = `rspauth=ea40f60335c427b5527b84dbabcdfffd`
+	//std_respnse  = `charset=utf-8,username="chris",realm="elwood.innosoft.com",nonce="OA6MG9tEQGm2hh",nc=00000001,cnonce="OA6MHXh6VqTrRk",digest-uri="imap/elwood.innosoft.com",response=d388dad90d4bbd760a152321f2143af7,qop=auth`
 )
 
 type StdGenerator struct{}
@@ -40,6 +44,12 @@ func (g StdGenerator) GetNonce(ln int) []byte {
 	return []byte(std_reply_cnonce) // Server's nonce
 }
 
+func sortFields(str string) string {
+	gs := strings.Split(str, ",")
+	sort.Strings(gs)
+	return strings.Join(gs, ",")
+}
+
 func TestStdExample(t *testing.T) {
 	opts := &digest.Options{
 		Generator: &StdGenerator{},
@@ -50,11 +60,32 @@ func TestStdExample(t *testing.T) {
 	}
 	s := digest.NewServer(opts)
 
-	t.Logf("    Challenge %s", s.Challenge())
-	t.Logf("STD Challenge %s", std_challenge)
-	// TODO check that challenge is valid
+	got := sortFields(string(s.Challenge()))
+	expect := sortFields(std_challenge)
+
+	if got != expect {
+		t.Logf("    Challenge %s", got)
+		t.Logf("STD Challenge %s", expect)
+		t.Fatal("Wrong challenge generated")
+	}
 
 	c := digest.NewClientFromChallenge([]byte(std_challenge), opts)
-	t.Logf("    Response  %s", c.Response(std_reply_username, std_password))
-	t.Logf("STD Response  %s", std_respnse)
+	rgot := sortFields(string(c.Response(std_reply_username, std_password)))
+	rexpect := sortFields(std_respnse)
+	if rgot != rexpect {
+		t.Logf("    Response  %s", rgot)
+		t.Logf("STD Response  %s", rexpect)
+		t.Fatal("Wrong response")
+	}
+
+	s.ParseResponse(c.Response(std_reply_username, std_password))
+	if err := s.Validate(std_password); err != nil {
+		t.Fatal(err)
+	}
+
+	if !bytes.Equal(s.Final(), []byte(std_respauth)) {
+		t.Log(string(s.Final()))
+		t.Log(std_respauth)
+		t.Fatal("Wrong Auth response")
+	}
 }
