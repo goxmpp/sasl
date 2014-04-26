@@ -51,7 +51,7 @@ func NewClientFromChallenge(chal []byte, opts *Options) (*Client, error) {
 	m := &digest{challenge: &challenge{}, response: newResponse(opts)}
 
 	if err := m.challenge.parseChallenge(chal); err != nil {
-		return err
+		return nil, err
 	}
 	m.response.nonce = m.challenge.nonce
 	m.response.charset = m.challenge.charset
@@ -62,7 +62,7 @@ func NewClientFromChallenge(chal []byte, opts *Options) (*Client, error) {
 		m.response.qop = m.challenge.qop[0]
 	}
 
-	return (*Client)(m)
+	return (*Client)(m), nil
 }
 
 func (m *Server) Challenge() []byte {

@@ -69,7 +69,10 @@ func TestStdExample(t *testing.T) {
 		t.Fatal("Wrong challenge generated")
 	}
 
-	c := digest.NewClientFromChallenge([]byte(std_challenge), opts)
+	c, err := digest.NewClientFromChallenge([]byte(std_challenge), opts)
+	if err != nil {
+		t.Fatal("Could not parse challenge", err)
+	}
 	rgot := sortFields(string(c.Response(std_reply_username, std_password)))
 	rexpect := sortFields(std_respnse)
 	if rgot != rexpect {
