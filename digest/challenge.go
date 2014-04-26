@@ -2,6 +2,7 @@ package digest
 
 import (
 	"bytes"
+	"log"
 
 	"github.com/azhavnerchik/sasl"
 )
@@ -15,21 +16,32 @@ type challenge struct {
 	stale   []byte // 'TRUE' or 'FALSE'
 }
 
-func newChallenge(gen sasl.NonceGenerator) *challenge {
-	return &challenge{
-		nonce:   sasl.BytesToHex(gen.GetNonce(cnonce_size)),
-		algo:    []byte("md5"),
-		qop:     [][]byte{[]byte("auth")},
-		charset: []byte("utf-8"),
+func newChallenge(opts *Options) *challenge {
+	algo, charset, realms, qops := "md5", "ytf-8", [][]byte{}, [][]byte{[]byte("auth")}
+	if opts.Algorithm != "" {
+		algo = opts.Algorithm
 	}
-}
+	if opts.Charset != "" {
+		algo = opts.Charset
+	}
 
-func (c *challenge) SetChallengeQOPs(qops ...string) {
-	c.qop = make([][]byte, 0)
-	for _, qop := range qops {
-		if qop == "auth" || qop == "auth-int" {
-			c.qop = append(c.qop, []byte(qop))
+	if len(opts.QOPs) > 0 {
+		qops = make([][]byte, 0)
+		for _, qop := range opts.QOPs {
+			qops = append(qops, []byte(qop))
 		}
+	}
+
+	for _, realm := range opts.Realms {
+		realms = append(realms, []byte(realm))
+	}
+
+	return &challenge{
+		nonce:   opts.Generator.GetNonce(nonce_size),
+		algo:    []byte(algo),
+		qop:     qops,
+		charset: []byte(charset),
+		realms:  realms,
 	}
 }
 
@@ -49,33 +61,7 @@ func (c *challenge) QOPs() []string {
 	return qops
 }
 
-func (c *challenge) SetChallengeRealms(srealms ...string) {
-	realms := make([][]byte, len(srealms))
-	for i, realm := range srealms {
-		realms[i] = []byte(realm)
-	}
-	c.realms = realms
-}
-
-func makeKV(key string, val []byte) []byte {
-	return sasl.MakeKeyValue([]byte(key), append(append([]byte{'"'}, val...), '"'))
-}
-
-func appendKVQuoted(kvs [][]byte, key string, val []byte) [][]byte {
-	if len(val) > 0 {
-		return append(kvs, makeKV(key, val))
-	}
-	return kvs
-}
-
-func appendKV(kvs [][]byte, key string, val []byte) [][]byte {
-	if len(val) > 0 {
-		return append(kvs, sasl.MakeKeyValue([]byte(key), val))
-	}
-	return kvs
-}
-
-func (c *challenge) Challenge() []byte {
+func (c *challenge) challenge() []byte {
 	challenge := [][]byte{makeKV("nonce", c.nonce), sasl.MakeKeyValue([]byte("algorithm"), c.algo)}
 	for _, realm := range c.realms {
 		challenge = appendKVQuoted(challenge, "realm", realm)
@@ -87,14 +73,16 @@ func (c *challenge) Challenge() []byte {
 	return sasl.MakeMessage(challenge...)
 }
 
-func (c *challenge) ParseChallenge(challenge []byte) error {
+func (c *challenge) parseChallenge(challenge []byte) error {
 	fmap := newFieldMapper()
 	fmap.Add("algorithm", &(c.algo))
 	fmap.Add("charset", &(c.charset))
 	fmap.Add("nonce", &(c.nonce))
 	fmap.Add("stale", &(c.stale))
 
+	log.Printf("%s", challenge)
 	return sasl.EachField(challenge, func(field []byte) error {
+		log.Printf("%s", field)
 		key, val := sasl.ExtractKeyValue(field, '=')
 
 		val = bytes.Trim(val, "\"")

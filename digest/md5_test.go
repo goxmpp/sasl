@@ -41,14 +41,20 @@ func (g StdGenerator) GetNonce(ln int) []byte {
 }
 
 func TestStdExample(t *testing.T) {
-	m := digest.NewMD5(&StdGenerator{})
-
-	m.SetChallengeRealms(std_challenge_realm)
-	if err := m.SetAlgorithm("md5-sess"); err != nil {
-		t.Fatal("Could not get algorithm:", err)
+	opts := &digest.Options{
+		Generator: &StdGenerator{},
+		Realms:    []string{std_challenge_realm},
+		Algorithm: "md5-sess",
+		QOPs:      []string{"auth"},
+		DigestURI: std_reply_digesturi,
 	}
-	t.Logf("Challenge %s", m.Challenge())
-	m.SetQOP("auth")
-	m.SetRealm(std_challenge_realm)
-	t.Logf("Response  %s", m.Response(std_reply_username, std_password))
+	s := digest.NewServer(opts)
+
+	t.Logf("    Challenge %s", s.Challenge())
+	t.Logf("STD Challenge %s", std_challenge)
+	// TODO check that challenge is valid
+
+	c := digest.NewClientFromChallenge([]byte(std_challenge), opts)
+	t.Logf("    Response  %s", c.Response(std_reply_username, std_password))
+	t.Logf("STD Response  %s", std_respnse)
 }

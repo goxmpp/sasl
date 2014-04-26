@@ -15,17 +15,22 @@ const A2_AUTH_SUFFIX = "00000000000000000000000000000000"
 type response struct {
 	realm, username, nonce, cnonce         []byte
 	server_type, host, digest_uri, charset []byte
-	auth_id, response, qop, algo           []byte
+	auth_id, resp, qop                     []byte
 	ok                                     bool
 	hpassword                              []byte
 	nonce_count                            int
 }
 
-func newResponse(gen sasl.NonceGenerator) *response {
+func newResponse(opts *Options) *response {
 	return &response{
-		cnonce:      sasl.BytesToHex(gen.GetNonce(nonce_size)),
+		cnonce:      opts.Generator.GetNonce(cnonce_size),
 		nonce_count: 1, // Need to generate this somehow
-		charset:     []byte("utf-8"),
+		charset:     []byte(opts.Charset),
+		realm:       []byte(opts.Realm),
+		qop:         []byte(opts.QOP),
+		digest_uri:  []byte(opts.DigestURI),
+		server_type: []byte(opts.ServerType),
+		auth_id:     []byte(opts.AuthID),
 	}
 }
 
@@ -34,7 +39,7 @@ func (r *response) nc() []byte {
 }
 
 // Parses client's response received by server and initialize internal state from it
-func (r *response) ParseResponse(data []byte, c *challenge) error {
+func (r *response) parseResponse(data []byte, c *challenge) error {
 	fmap := newFieldMapper()
 	fmap.Add("username", &(r.username))
 	fmap.Add("realm", &(r.realm))
@@ -42,11 +47,10 @@ func (r *response) ParseResponse(data []byte, c *challenge) error {
 	fmap.Add("cnonce", &(r.cnonce))
 	fmap.Add("host", &(r.host))
 	fmap.Add("digest-uri", &(r.digest_uri))
-	fmap.Add("response", &(r.response))
+	fmap.Add("response", &(r.resp))
 	fmap.Add("charset", &(r.charset))
 	fmap.Add("authzid", &(r.auth_id))
 	fmap.Add("qop", &(r.qop))
-	fmap.Add("algorithm", &(r.algo))
 
 	uniq := map[string]int{"username": 0, "realm": 0, "nonce": 0, "cnonce": 0, "nc": 0}
 
@@ -96,11 +100,8 @@ func (r *response) SetQOP(qop string) {
 	r.qop = []byte(qop) // TODO added checks
 }
 
-func (r *response) Response(username []byte, c *challenge) []byte {
+func (r *response) response(username []byte, c *challenge) []byte {
 	r.username = username
-	r.nonce = c.nonce
-	r.algo = c.algo
-	r.charset = c.charset
 
 	repl := [][]byte{
 		makeKV("nonce", r.nonce), makeKV("cnonce", r.cnonce),
@@ -113,49 +114,31 @@ func (r *response) Response(username []byte, c *challenge) []byte {
 	repl = appendKVQuoted(repl, "digest-uri", r.digest_uri)
 	repl = appendKVQuoted(repl, "host", r.host)
 	repl = appendKVQuoted(repl, "serv-type", r.server_type)
-	repl = appendKV(repl, "algorithm", r.algo)
 	repl = appendKV(repl, "charset", r.charset)
 	repl = appendKV(repl, "qop", r.qop)
 
 	return sasl.MakeMessage(repl...)
 }
 
-func contains(find []byte, arr [][]byte) bool {
-	for _, item := range arr {
-		if bytes.Equal(find, item) {
-			return true
-		}
-	}
-	return false
-}
-
-func (r *response) Validate(c *challenge) error {
+func (r *response) validate(c *challenge) error {
 	if !bytes.Equal(r.nonce, c.nonce) {
 		return errors.New("Wrong nonce replied")
 	}
 
-	if !bytes.Equal(r.algo, c.algo) {
-		return errors.New("Wrong algorithm specified in client's reply")
-	}
-
-	if len(c.realms) > 0 && !contains(r.realm, c.realms) {
+	if len(c.realms) > 0 && !sasl.Contains(r.realm, c.realms) {
 		return errors.New("Wrong realm received from client")
 	}
 
-	if len(c.qop) > 0 && !contains(r.qop, c.qop) {
+	if len(c.qop) > 0 && !sasl.Contains(r.qop, c.qop) {
 		return errors.New("Wrong QOP received from client")
 	}
 
-	if !bytes.Equal(r.generateHash(), r.response) {
+	if !bytes.Equal(r.generateHash(), r.resp) {
 		return errors.New("Wrong response hash received")
 	}
 	r.ok = true
 
 	return nil
-}
-
-func makeMessage(tokens ...[]byte) []byte {
-	return bytes.Join(tokens, []byte{':'})
 }
 
 // Sets internal hashed password. Enables users to store passwords hashed
@@ -182,7 +165,7 @@ func (r *response) generateHash() []byte {
 	hstart := sasl.BytesToHex(start[:])
 
 	bend := makeMessage([]byte("AUTHENTICATE"), r.digest_uri)
-	if contains(r.qop, [][]byte{[]byte("auth-int"), []byte("auth-conf")}) {
+	if sasl.Contains(r.qop, [][]byte{[]byte("auth-int"), []byte("auth-conf")}) {
 		bend = makeMessage(bend, []byte(A2_AUTH_SUFFIX))
 	}
 	end := md5.Sum(bend)

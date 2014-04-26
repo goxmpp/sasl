@@ -53,7 +53,15 @@ func MakeMessage(kvs ...[]byte) []byte {
 }
 
 func EachField(mess []byte, predicate func([]byte) error) error {
-	for _, field := range bytes.Fields(mess) {
+	in_quotes := false
+	pred := func(r rune) bool {
+		if r == '"' {
+			in_quotes = !in_quotes
+			return false
+		}
+		return r == ',' && !in_quotes
+	}
+	for _, field := range bytes.FieldsFunc(mess, pred) {
 		if err := predicate(field); err != nil {
 			return err
 		}
@@ -70,6 +78,15 @@ func EachToken(mess []byte, sep byte, predicate func(token []byte) error) error 
 	}
 
 	return nil
+}
+
+func Contains(find []byte, arr [][]byte) bool {
+	for _, item := range arr {
+		if bytes.Equal(find, item) {
+			return true
+		}
+	}
+	return false
 }
 
 func ExtractKeyValue(token []byte, sep byte) ([]byte, []byte) {

@@ -1,79 +1,110 @@
 package digest
 
-import (
-	"errors"
-
-	"github.com/azhavnerchik/sasl"
-)
+import "github.com/azhavnerchik/sasl"
 
 const (
 	nonce_size  = 16
 	cnonce_size = 10
 )
 
-type MD5 struct {
+type digest struct {
 	*challenge
 	*response
 }
 
-var DefaultGenerator sasl.Generator
+type Server digest
+type Client digest
 
-func NewMD5(gen sasl.NonceGenerator) *MD5 {
-	if gen == nil {
-		gen = DefaultGenerator
-	}
-
-	return &MD5{challenge: newChallenge(gen), response: newResponse(gen)}
+type Options struct {
+	Generator  sasl.NonceGenerator
+	Realms     []string
+	QOPs       []string
+	QOP        string
+	Realm      string
+	Algorithm  string
+	Charset    string
+	DigestURI  string
+	AuthID     string
+	ServerType string
 }
 
-func (m *MD5) AuthID() string {
+var DefaultGenerator sasl.Generator
+
+func newDigest(opts *Options) *digest {
+	if opts.Generator == nil {
+		opts.Generator = DefaultGenerator
+	}
+
+	return &digest{challenge: newChallenge(opts), response: newResponse(opts)}
+}
+
+func NewServer(opts *Options) *Server {
+	return (*Server)(newDigest(opts))
+}
+
+func NewClient(opts *Options) *Client {
+	return (*Client)(newDigest(opts))
+}
+
+// Algorithm, Nonce, Realm, Charset and QOP will be set from challenge message
+func NewClientFromChallenge(chal []byte, opts *Options) *Client {
+	m := &digest{challenge: &challenge{}, response: newResponse(opts)}
+
+	m.challenge.parseChallenge(chal)
+	m.response.nonce = m.challenge.nonce
+	m.response.charset = m.challenge.charset
+	if len(m.challenge.realms) > 0 {
+		m.response.realm = m.challenge.realms[0]
+	}
+	if len(m.challenge.qop) > 0 {
+		m.response.qop = m.challenge.qop[0]
+	}
+
+	return (*Client)(m)
+}
+
+func (m *Server) Challenge() []byte {
+	return m.challenge.challenge()
+}
+
+func (m *Server) AuthID() string {
 	if len(m.response.auth_id) > 0 {
 		return string(m.response.auth_id)
 	}
 	return string(m.response.username)
 }
 
-func (m *MD5) UserName() string {
+func (m *Server) UserName() string {
 	return string(m.response.username)
 }
 
-func (m *MD5) Response(username, password string) []byte {
+func (m *Client) Response(username, password string) []byte {
 	m.response.HashPassword([]byte(password))
-	return m.response.Response([]byte(username), m.challenge)
+	return m.response.response([]byte(username), m.challenge)
 }
 
-func (m *MD5) ResponseHashed(username string, password []byte) []byte {
+func (m *Client) ResponseHashed(username string, password []byte) []byte {
 	m.response.SetPasswordHash(password)
-	return m.response.Response([]byte(username), m.challenge)
+	return m.response.response([]byte(username), m.challenge)
 }
 
-func (m *MD5) Final() []byte {
+func (m *Server) Final() []byte {
 	if m.response.ok {
 		return []byte("rspauth") // TODO reply something else on failed authentication
 	}
 	return []byte{}
 }
 
-func (m *MD5) Validate(password string) error {
+func (m *Server) Validate(password string) error {
 	m.response.HashPassword([]byte(password))
-	return m.response.Validate(m.challenge)
+	return m.response.validate(m.challenge)
 }
 
-func (m *MD5) ValidateHashed(password []byte) error {
+func (m *Server) ValidateHashed(password []byte) error {
 	m.response.SetPasswordHash(password)
-	return m.response.Validate(m.challenge)
+	return m.response.validate(m.challenge)
 }
 
-func (m *MD5) ParseResponse(response []byte) error {
-	return m.response.ParseResponse(response, m.challenge)
-}
-
-func (m *MD5) SetAlgorithm(algo string) error {
-	if algo != "md5" && algo != "md5-sess" {
-		return errors.New("Wrong algorithm specified")
-	}
-
-	m.challenge.algo = []byte(algo)
-	m.response.algo = []byte(algo)
-	return nil
+func (m *Server) ParseResponse(response []byte) error {
+	return m.response.parseResponse(response, m.challenge)
 }
