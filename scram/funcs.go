@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"encoding/base64"
 
-	"github.com/azhavnerchik/sasl/util"
+	"github.com/azhavnerchik/sasl"
 )
 
 // Extracts proof from Server First message and Base64 decodes it.
@@ -20,11 +20,11 @@ func extractProof(mess []byte) ([]byte, error) {
 }
 
 func extractParameter(mess []byte, param byte) ([]byte, error) {
-	return util.ExtractParameter(mess, []byte{param})
+	return sasl.ExtractParameter(mess, []byte{param})
 }
 
 func makeKeyValue(key byte, value []byte) []byte {
-	return util.MakeKeyValue([]byte{key}, value)
+	return sasl.MakeKeyValue([]byte{key}, value)
 }
 
 func validateMessage(mess []byte) error {
