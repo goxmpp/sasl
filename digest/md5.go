@@ -1,6 +1,6 @@
 package digest
 
-import "github.com/azhavnerchik/sasl"
+import "github.com/goxmpp/sasl"
 
 const (
 	nonce_size  = 16

@@ -6,7 +6,7 @@ import (
 	"hash"
 	"strconv"
 
-	"github.com/azhavnerchik/sasl"
+	"github.com/goxmpp/sasl"
 )
 
 const (

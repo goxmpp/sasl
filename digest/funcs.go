@@ -3,7 +3,7 @@ package digest
 import (
 	"bytes"
 
-	"github.com/azhavnerchik/sasl"
+	"github.com/goxmpp/sasl"
 )
 
 func makeKV(key string, val []byte) []byte {

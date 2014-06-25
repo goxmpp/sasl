@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/azhavnerchik/sasl/digest"
+	"github.com/goxmpp/sasl/digest"
 )
 
 const (

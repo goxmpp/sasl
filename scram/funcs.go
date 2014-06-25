@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"encoding/base64"
 
-	"github.com/azhavnerchik/sasl"
+	"github.com/goxmpp/sasl"
 )
 
 // Extracts proof from Server First message and Base64 decodes it.

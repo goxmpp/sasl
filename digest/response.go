@@ -7,7 +7,7 @@ import (
 	"fmt"
 	"strconv"
 
-	"github.com/azhavnerchik/sasl"
+	"github.com/goxmpp/sasl"
 )
 
 const A2_AUTH_SUFFIX = "00000000000000000000000000000000"

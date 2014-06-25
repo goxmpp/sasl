@@ -5,7 +5,7 @@ import (
 	"encoding/base64"
 	"strconv"
 
-	"github.com/azhavnerchik/sasl"
+	"github.com/goxmpp/sasl"
 )
 
 type Client struct {

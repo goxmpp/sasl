@@ -3,7 +3,7 @@ package scram
 import (
 	"bytes"
 
-	"github.com/azhavnerchik/sasl"
+	"github.com/goxmpp/sasl"
 )
 
 type Server struct {
